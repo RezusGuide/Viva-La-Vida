@@ -134,6 +134,14 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
+    // Create: Chromeware — необязательная зависимость, только для компиляции ChromewareBridge.
+    // Jar не в git (лицензия All Rights Reserved): положи его в корень репозитория (или задай -Pchromeware_jar=путь).
+    def chromewareJar = file(project.findProperty("chromeware_jar") ?: "chromeware-${chromeware_version}.jar")
+    if (!chromewareJar.exists()) {
+        throw new GradleException("Нет ${chromewareJar} — положи jar Create: Chromeware ${chromeware_version} в корень репозитория")
+    }
+    compileOnly files(chromewareJar)
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"

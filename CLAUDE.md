@@ -9,6 +9,9 @@
 - В сборке: Create 6.0.10, Create Aeronautics 1.3.2, Sable 2.0.6, GeckoLib 4.9.3, Jade 15.10.6, Curios 9.5.1.
 - Create в dev: `com.simibubi.create:create-1.21.1:6.0.10-280:slim` (сборка 280 = git ac0c444, тот же коммит, что jar в инстансе),
   Ponder 1.0.82+mc1.21.1, Flywheel 1.0.6, Registrate MC1.21-1.3.0+67. Версии — в `gradle.properties`.
+- Create: Chromeware 1.3.0 — **необязательная** зависимость. Для компиляции нужен `chromeware-1.3.0.jar` в корне репозитория
+  (в git не кладём: All Rights Reserved; `/*.jar` в .gitignore; другой путь — `-Pchromeware_jar=...`). Без него build падает
+  с понятной ошибкой. В игре без Chromeware всё работает.
 - Инстанс Prism с jar всех модов сборки:
   `C:\Users\give_\AppData\Roaming\PrismLauncher\instances\Viva La Vida\minecraft\mods`.
   Если зависимости нет на maven — бери jar оттуда (`compileOnly` / `localRuntime`), не качай с непонятных сайтов.
@@ -36,7 +39,20 @@
 - GameTest: в main-исходниках, `@GameTestHolder("vivacore")`, шаблоны `vivacore:empty`
   (`data/vivacore/structure/empty.nbt`, 1×1×1 воздух) и `vivacore:wheels` (12×8×14 воздух).
   Вода для колёс в тестах — пузырьковые столбы над песком душ (Create считает их потоком).
-- Тесты по «09 Тесты»: 35 — дома (`home/HomeGameTests`), 17 — лимит водяных колёс (`wheels/WheelGameTests`).
+- Тесты по «09 Тесты»: 35 — дома (`home/HomeGameTests`), 17 — лимит водяных колёс (`wheels/WheelGameTests`),
+  36 — твист с имплантом Живы и 33 (заготовка Kiroshi) — `zhiva/ZhivaGameTests`. Тест 7 (баланс Chromeware) —
+  разведка в `docs/chromeware-balance.md`.
+- Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое
+  соединение их не принимает, сервер падает. Бери `ZhivaGameTests#player`: ServerPlayer вне мира с «глухим» соединением.
+  `ServerPlayer.moveTo` без соединения падает — используй `setPos`.
+- Жива (`zhiva/`): состояние — attachment `vivacore:zhiva` (IMPLANTED → REMOVED → REVEALED, copyOnDeath, синхронизация
+  только владельцу); логика — `Zhiva`; голос — `ZhivaVoice` (антиспам); помощь — `ZhivaHelp` (здоровье + пустые точки
+  входа для рейдов и советов); устройство — `zhiva/device`, пакеты терминала — `zhiva/net`, экран — `client/`.
+- Chromeware: всё только через `compat/ChromewareCompat` (без ссылок на классы Chromeware) → `ChromewareBridge`
+  (ссылки есть, грузится только если мод загружен, LinkageError → «нет» + одна строка в логе). Кушетка — событие NeoForge
+  `EntityMountEvent` на сущность `chromeware:surgery_seat`, без миксинов. Хрупкие места при обновлении Chromeware:
+  id `chromeware:surgery_seat`, `Implant.KIROSHI_OPTICS`, `Implant#installed(Player)`.
+- Конфиги NeoForge 21.1.264 (и наш, и чужие) лежат в `config/` (в dev — `run/config/`), не в `world/serverconfig/`.
 - Миксины: `src/main/resources/vivacore.mixins.json`, классы в `dev.rezus.vivacore.mixin`:
   - `WaterWheelBlockEntityMixin` (Create `WaterWheelBlockEntity`): `getGeneratedSpeed` HEAD cancellable → 0 у лишнего
     колеса; `setFlowScoreAndUpdate` INVOKE перед `updateGeneratedRotation` → проверка лимита; `write` TAIL /

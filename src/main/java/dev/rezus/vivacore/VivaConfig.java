@@ -44,6 +44,29 @@ public final class VivaConfig {
         BUILDER.pop();
     }
 
+    // --- zhiva: Жива и твист с имплантом (заметка «02 Сюжет и Жива», тест 36) ---
+    public static final ModConfigSpec.IntValue ZHIVA_PHRASE_COOLDOWN;
+    public static final ModConfigSpec.IntValue ZHIVA_LOW_HEALTH_PERCENT;
+    public static final ModConfigSpec.IntValue ZHIVA_HEALTH_CHECK_TICKS;
+    public static final ModConfigSpec.DoubleValue ZHIVA_DEVICE_REACH;
+
+    static {
+        BUILDER.comment("Жива: голос и устройство имплантирования").push("zhiva");
+        ZHIVA_PHRASE_COOLDOWN = BUILDER
+                .comment("Одна и та же фраза Живы не чаще, чем раз в столько секунд")
+                .defineInRange("phraseCooldownSeconds", 60, 0, 86400);
+        ZHIVA_LOW_HEALTH_PERCENT = BUILDER
+                .comment("Здоровье ниже стольких процентов → фраза про опасность")
+                .defineInRange("lowHealthPercent", 30, 0, 100);
+        ZHIVA_HEALTH_CHECK_TICKS = BUILDER
+                .comment("Как часто (в тиках) проверять здоровье игрока")
+                .defineInRange("healthCheckTicks", 20, 1, 1200);
+        ZHIVA_DEVICE_REACH = BUILDER
+                .comment("Запас дальности (в блоках) сверх обычной дальности руки для действий в устройстве")
+                .defineInRange("deviceReachBuffer", 1.0, 0.0, 16.0);
+        BUILDER.pop();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private VivaConfig() {}
@@ -74,5 +97,21 @@ public final class VivaConfig {
 
     public static int wheelsCheckInterval() {
         return getOr(WHEELS_CHECK_INTERVAL, WHEELS_CHECK_INTERVAL::getDefault);
+    }
+
+    public static int zhivaPhraseCooldownSeconds() {
+        return getOr(ZHIVA_PHRASE_COOLDOWN, ZHIVA_PHRASE_COOLDOWN::getDefault);
+    }
+
+    public static int zhivaLowHealthPercent() {
+        return getOr(ZHIVA_LOW_HEALTH_PERCENT, ZHIVA_LOW_HEALTH_PERCENT::getDefault);
+    }
+
+    public static int zhivaHealthCheckTicks() {
+        return getOr(ZHIVA_HEALTH_CHECK_TICKS, ZHIVA_HEALTH_CHECK_TICKS::getDefault);
+    }
+
+    public static double zhivaDeviceReach() {
+        return SPEC.isLoaded() ? ZHIVA_DEVICE_REACH.get() : ZHIVA_DEVICE_REACH.getDefault();
     }
 }
