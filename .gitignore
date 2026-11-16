@@ -38,3 +38,6 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+# чужие jar для изучения в корне репозитория не коммитим
+/*.jar

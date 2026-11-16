@@ -25,6 +25,25 @@ public final class VivaConfig {
         BUILDER.pop();
     }
 
+    // --- wheels: лимит водяных колёс Create (заметка «13 Мир, спавнер, колёса», тест 17) ---
+    public static final ModConfigSpec.BooleanValue WHEELS_ENABLED;
+    public static final ModConfigSpec.IntValue WHEELS_MAX_PER_NETWORK;
+    public static final ModConfigSpec.IntValue WHEELS_CHECK_INTERVAL;
+
+    static {
+        BUILDER.comment("Лимит водяных колёс Create в одной кинетической сети").push("wheels");
+        WHEELS_ENABLED = BUILDER
+                .comment("Включить лимит")
+                .define("enabled", true);
+        WHEELS_MAX_PER_NETWORK = BUILDER
+                .comment("Сколько водяных колёс (малых и больших, каждое как одно) работает в одной сети")
+                .defineInRange("maxPerNetwork", 3, 0, 1024);
+        WHEELS_CHECK_INTERVAL = BUILDER
+                .comment("Как часто (в тиках) каждое колесо перепроверяет лимит")
+                .defineInRange("checkIntervalTicks", 10, 1, 1200);
+        BUILDER.pop();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private VivaConfig() {}
@@ -43,5 +62,17 @@ public final class VivaConfig {
 
     public static int homeCommandPermission() {
         return getOr(HOME_COMMAND_PERMISSION, HOME_COMMAND_PERMISSION::getDefault);
+    }
+
+    public static boolean wheelsEnabled() {
+        return SPEC.isLoaded() ? WHEELS_ENABLED.get() : WHEELS_ENABLED.getDefault();
+    }
+
+    public static int wheelsMaxPerNetwork() {
+        return getOr(WHEELS_MAX_PER_NETWORK, WHEELS_MAX_PER_NETWORK::getDefault);
+    }
+
+    public static int wheelsCheckInterval() {
+        return getOr(WHEELS_CHECK_INTERVAL, WHEELS_CHECK_INTERVAL::getDefault);
     }
 }

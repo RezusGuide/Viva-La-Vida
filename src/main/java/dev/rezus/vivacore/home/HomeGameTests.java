@@ -13,13 +13,20 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import com.mojang.authlib.GameProfile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import net.minecraft.server.players.GameProfileCache;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
- * GameTest на логику домов и на кириллицу в командах.
- * В заметке «09 Тесты» отдельного номера для домов пока нет — тесты автоматические, проверяют только логику.
+ * GameTest на логику домов и на кириллицу в командах — тест 35 в «09 Тесты» (испытание «Приятный дом»).
+ * Автоматически проверяется логика и разбор команд; команды из чата живого клиента — вручную.
  * Запуск: ./gradlew runGameTestServer
  */
 @GameTestHolder(VivaCore.MOD_ID)
@@ -31,6 +38,7 @@ public final class HomeGameTests {
     private static final UUID A = UUID.fromString("00000000-0000-0000-0000-00000000000a");
     private static final UUID B = UUID.fromString("00000000-0000-0000-0000-00000000000b");
     private static final UUID C = UUID.fromString("00000000-0000-0000-0000-00000000000c");
+    private static final UUID D = UUID.fromString("00000000-0000-0000-0000-00000000000d");
     private static final GlobalPos POS = GlobalPos.of(Level.OVERWORLD, new BlockPos(10, 64, -20));
 
     private HomeGameTests() {}
@@ -126,16 +134,90 @@ public final class HomeGameTests {
 
         h.assertTrue(suggest(dispatcher, src, "viva д").contains("дом"), "подсказка «дом» по «д»");
         List<String> sub = suggest(dispatcher, src, "viva дом ");
-        h.assertTrue(sub.containsAll(List.of("одобрить", "снять", "список")), "подсказки подкоманд: " + sub);
+        h.assertTrue(sub.containsAll(List.of("одобрить", "снять", "список", "место", "добавить")), "подсказки подкоманд: " + sub);
         h.assertTrue(suggest(dispatcher, src, "viva дом с").containsAll(List.of("снять", "список")),
                 "подсказки по началу кириллического слова");
         h.assertTrue(suggest(dispatcher, src, "viva дом од").contains("одобрить"), "подсказка «одобрить»");
 
         CommandNode<CommandSourceStack> home = dispatcher.getRoot().getChild("viva").getChild("дом");
         String usage = String.join(" | ", dispatcher.getAllUsage(home, src, true));
-        h.assertTrue(usage.contains("одобрить <ник1> <ник2>") && usage.contains("снять <ник>"), "имена аргументов: " + usage);
+        h.assertTrue(usage.contains("одобрить <ник1> <ник2>") && usage.contains("снять <ник>")
+                && usage.contains("добавить <ник> <к_нику>") && usage.contains("место <ник> <координаты>"),
+                "имена аргументов: " + usage);
 
         h.assertTrue(dispatcher.parse("viva дом снятьX", src).getReader().canRead(), "лишние буквы не принимаются");
+        h.succeed();
+    }
+
+    /** Позиция из консоли не сохраняется (null), у сущности — сохраняется её позиция. */
+    @GameTest(template = EMPTY)
+    public static void consolePosIsNull(GameTestHelper h) {
+        var server = h.getLevel().getServer();
+        h.assertTrue(HomeCommands.sourcePos(server.createCommandSourceStack()) == null, "консоль → позиция null");
+        ArmorStand stand = h.spawn(EntityType.ARMOR_STAND, new BlockPos(1, 2, 1));
+        GlobalPos pos = HomeCommands.sourcePos(stand.createCommandSourceStack());
+        h.assertTrue(pos != null && pos.pos().equals(stand.blockPosition()) && pos.dimension().equals(h.getLevel().dimension()),
+                "сущность → её позиция: " + pos);
+
+        HomeData data = new HomeData();
+        data.approve(List.of(A), MAX, HomeCommands.sourcePos(server.createCommandSourceStack()));
+        h.assertTrue(data.homeOf(A).orElseThrow().pos() == null, "дом из консоли без позиции");
+        h.succeed();
+    }
+
+    /** «место»: задать место дома; у бездомного — отказ; место переживает сохранение. */
+    @GameTest(template = EMPTY)
+    public static void setHomePos(GameTestHelper h) {
+        HomeData data = new HomeData();
+        data.approve(List.of(A, B), MAX, null);
+        GlobalPos target = GlobalPos.of(Level.NETHER, new BlockPos(1, 70, 2));
+        h.assertTrue(data.setPos(B, target), "место задано через второго жильца");
+        h.assertTrue(target.equals(data.homeOf(A).orElseThrow().pos()), "место общее для дома");
+        h.assertTrue(!data.setPos(C, target), "у бездомного — отказ");
+        var registries = h.getLevel().registryAccess();
+        HomeData loaded = HomeData.load(data.save(new CompoundTag(), registries), registries);
+        h.assertTrue(target.equals(loaded.homeOf(A).orElseThrow().pos()), "место после загрузки");
+        h.succeed();
+    }
+
+    /** «добавить»: второй жилец; полный дом — отказ; у добавляемого уже есть дом — отказ. */
+    @GameTest(template = EMPTY)
+    public static void addSecondMember(GameTestHelper h) {
+        HomeData data = new HomeData();
+        data.approve(List.of(A), MAX, POS);
+        h.assertTrue(data.addMember(B, A, MAX) == HomeData.Result.OK, "B добавлен к A");
+        h.assertTrue(data.homeOf(B).orElseThrow() == data.homeOf(A).orElseThrow(), "A и B в одном доме");
+        h.assertTrue(data.addMember(C, A, MAX) == HomeData.Result.FULL, "в полный дом — отказ");
+        h.assertTrue(data.homeOf(C).isEmpty(), "C не попал в дом");
+        data.approve(List.of(C), MAX, POS);
+        h.assertTrue(data.addMember(C, A, MAX) == HomeData.Result.ALREADY_HOUSED, "у C уже есть дом — отказ");
+        h.assertTrue(data.addMember(D, B, 3) == HomeData.Result.OK, "при maxMembers=3 третий влезает");
+        h.assertTrue(data.addMember(A, D, MAX) == HomeData.Result.ALREADY_HOUSED, "A уже в доме");
+        h.assertTrue(data.addMember(B, B, MAX) == HomeData.Result.DUPLICATE, "сам к себе — отказ");
+        HomeData empty = new HomeData();
+        h.assertTrue(empty.addMember(A, B, MAX) == HomeData.Result.TARGET_NOT_HOUSED, "к бездомному — отказ");
+        h.succeed();
+    }
+
+    /** Ник из usercache.json запоминается в HomeData. */
+    @GameTest(template = EMPTY)
+    public static void usercacheNameRemembered(GameTestHelper h) {
+        // У GameTestServer нет своего usercache — создаём кэш во временном файле
+        GameProfileCache cache;
+        try {
+            Path file = Files.createTempFile("vivacore-usercache", ".json");
+            Files.writeString(file, "[]");
+            file.toFile().deleteOnExit();
+            cache = new GameProfileCache(null, file.toFile());
+        } catch (IOException e) {
+            h.fail("не создать временный usercache: " + e);
+            return;
+        }
+        UUID id = UUID.fromString("00000000-0000-0000-0000-0000000000ee");
+        cache.add(new GameProfile(id, "CacheGuy"));
+        HomeData data = new HomeData();
+        h.assertTrue("CacheGuy".equals(HomeCommands.nameOf(cache, data, id)), "ник из кэша");
+        h.assertTrue("CacheGuy".equals(data.knownNames().get(id)), "ник запомнен в HomeData");
         h.succeed();
     }
 

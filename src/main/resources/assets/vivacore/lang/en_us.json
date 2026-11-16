@@ -10,5 +10,10 @@
   "vivacore.home.list.header": "[TEXT: home list: housed %1$s, homeless %2$s]",
   "vivacore.home.list.entry": "[TEXT: home: %1$s, position %2$s]",
   "vivacore.home.list.homeless": "[TEXT: homeless: %s]",
-  "vivacore.home.list.no_homeless": "[TEXT: everyone has a home]"
+  "vivacore.home.list.no_homeless": "[TEXT: everyone has a home]",
+  "vivacore.home.added": "[TEXT: player %1$s added to the home of %2$s]",
+  "vivacore.home.pos_set": "[TEXT: home position of %1$s: %2$s]",
+  "vivacore.home.error.full": "[TEXT: the home of %1$s already has %2$s members]",
+  "vivacore.home.error.no_source_pos": "[TEXT: the console has no position, give coordinates]",
+  "vivacore.wheels.limited": "[TEXT: wheel stopped: limit %s per network]"
 }

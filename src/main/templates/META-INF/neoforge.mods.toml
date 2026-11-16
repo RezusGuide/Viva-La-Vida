@@ -11,6 +11,9 @@ description='''
 Core mod of the Viva La Vida modpack.
 '''
 
+[[mixins]]
+config="${mod_id}.mixins.json"
+
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"

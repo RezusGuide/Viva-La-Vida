@@ -10,5 +10,10 @@
   "vivacore.home.list.header": "[ТЕКСТ: список домов: с домом %1$s, без дома %2$s]",
   "vivacore.home.list.entry": "[ТЕКСТ: дом: %1$s, координаты %2$s]",
   "vivacore.home.list.homeless": "[ТЕКСТ: без дома: %s]",
-  "vivacore.home.list.no_homeless": "[ТЕКСТ: все игроки с домом]"
+  "vivacore.home.list.no_homeless": "[ТЕКСТ: все игроки с домом]",
+  "vivacore.home.added": "[ТЕКСТ: игрок %1$s добавлен в дом игрока %2$s]",
+  "vivacore.home.pos_set": "[ТЕКСТ: место дома игрока %1$s: %2$s]",
+  "vivacore.home.error.full": "[ТЕКСТ: в доме игрока %1$s уже %2$s жильцов — мест нет]",
+  "vivacore.home.error.no_source_pos": "[ТЕКСТ: у консоли нет позиции — укажи координаты]",
+  "vivacore.wheels.limited": "[ТЕКСТ: колесо стоит — лимит %s на сеть]"
 }

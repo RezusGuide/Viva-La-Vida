@@ -46,7 +46,7 @@ public final class HomeData extends SavedData {
 
     // ---------------------------------------------------------------- логика
 
-    public enum Result { OK, EMPTY, TOO_MANY, DUPLICATE, ALREADY_HOUSED }
+    public enum Result { OK, EMPTY, TOO_MANY, DUPLICATE, ALREADY_HOUSED, TARGET_NOT_HOUSED, FULL }
 
     /**
      * @param result      итог
@@ -58,7 +58,8 @@ public final class HomeData extends SavedData {
     /**
      * Одобрить новый дом для игроков.
      *
-     * @param pos позиция одобряющего оператора — заготовка: по этим координатам позже пойдут набеги жителей
+     * @param pos позиция дома (позиция одобряющего игрока-оператора или null, если одобрили из консоли) —
+     *            заготовка: по этим координатам позже пойдут набеги жителей
      */
     public ApproveOutcome approve(List<UUID> members, int maxMembers, @Nullable GlobalPos pos) {
         if (members.isEmpty()) {
@@ -80,6 +81,43 @@ public final class HomeData extends SavedData {
         homes.put(home.id(), home);
         setDirty();
         return new ApproveOutcome(Result.OK, null, home);
+    }
+
+    /**
+     * Добавить игрока в дом другого игрока (второй жилец).
+     *
+     * @param player   кого добавить — у него не должно быть дома
+     * @param toPlayer в чей дом
+     */
+    public Result addMember(UUID player, UUID toPlayer, int maxMembers) {
+        if (player.equals(toPlayer)) {
+            return Result.DUPLICATE;
+        }
+        if (homeOf(player).isPresent()) {
+            return Result.ALREADY_HOUSED;
+        }
+        Optional<Home> target = homeOf(toPlayer);
+        if (target.isEmpty()) {
+            return Result.TARGET_NOT_HOUSED;
+        }
+        Home home = target.get();
+        if (home.members.size() >= maxMembers) {
+            return Result.FULL;
+        }
+        home.members.add(player);
+        setDirty();
+        return Result.OK;
+    }
+
+    /** Задать место дома игрока. @return false, если у игрока нет дома */
+    public boolean setPos(UUID player, @Nullable GlobalPos pos) {
+        Optional<Home> found = homeOf(player);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().pos = pos;
+        setDirty();
+        return true;
     }
 
     /** Снять игрока с дома. Пустой дом удаляется. @return false, если игрок был без дома */
@@ -191,7 +229,7 @@ public final class HomeData extends SavedData {
         private final int id;
         private final List<UUID> members;
         @Nullable
-        private final GlobalPos pos;
+        private GlobalPos pos;
 
         Home(int id, List<UUID> members, @Nullable GlobalPos pos) {
             this.id = id;
@@ -207,7 +245,7 @@ public final class HomeData extends SavedData {
             return Collections.unmodifiableList(members);
         }
 
-        /** Позиция одобряющего оператора. Заготовка для набегов жителей. */
+        /** Место дома (позиция одобрившего игрока или из «/viva дом место»); null — не задано. Для набегов. */
         @Nullable
         public GlobalPos pos() {
             return pos;

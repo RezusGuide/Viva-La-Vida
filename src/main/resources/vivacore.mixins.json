@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.rezus.vivacore.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "GeneratingKineticBlockEntityMixin",
+    "WaterWheelBlockEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
