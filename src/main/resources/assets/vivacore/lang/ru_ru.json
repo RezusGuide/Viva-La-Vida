@@ -43,10 +43,13 @@
   "vivacore.zhiva.device.no_chip": "[ТЕКСТ: нет вашего чипа]",
   "vivacore.zhiva.device.wrong_state": "[ТЕКСТ: устройство не может это сделать сейчас]",
   "vivacore.zhiva.device.too_far": "[ТЕКСТ: вы слишком далеко от устройства]",
-  "vivacore.zhiva.command.status": "[ТЕКСТ: Жива у %1$s: состояние %2$s, кушетка %3$s, Chromeware %4$s, Kiroshi %5$s]",
+  "vivacore.zhiva.command.status": "[ТЕКСТ: Жива у %1$s: состояние %2$s, кушетка %3$s, Chromeware %4$s, оптика %5$s]",
   "vivacore.zhiva.command.state_set": "[ТЕКСТ: состояние Живы у %1$s: %2$s]",
   "vivacore.zhiva.command.couch_done": "[ТЕКСТ: %s: посторонний имплант обнаружен, квест открыт]",
   "vivacore.zhiva.command.couch_already": "[ТЕКСТ: %s уже получал это сообщение]",
   "vivacore.common.yes": "[ТЕКСТ: да]",
-  "vivacore.common.no": "[ТЕКСТ: нет]"
+  "vivacore.common.no": "[ТЕКСТ: нет]",
+  "entity.vivacore.scout_drone": "[ТЕКСТ: дрон-разведчик «Мейсса»]",
+  "item.vivacore.scout_drone_spawn_egg": "[ТЕКСТ: яйцо призыва дрона-разведчика]",
+  "itemGroup.vivacore": "Viva Core"
 }

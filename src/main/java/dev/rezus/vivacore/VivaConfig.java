@@ -67,6 +67,30 @@ public final class VivaConfig {
         BUILDER.pop();
     }
 
+    // --- army: армия лаборатории (заметка «16 Враги-армия», тест 24) ---
+    public static final ModConfigSpec.DoubleValue SCOUT_DRONE_HEALTH;
+    public static final ModConfigSpec.DoubleValue SCOUT_DRONE_SPEED;
+    public static final ModConfigSpec.IntValue SCOUT_DRONE_HOVER_RADIUS;
+    public static final ModConfigSpec.IntValue SCOUT_DRONE_HOVER_HEIGHT;
+
+    static {
+        BUILDER.comment("Армия лаборатории").push("army");
+        BUILDER.comment("Дрон-разведчик «Мейсса»").push("scoutDrone");
+        SCOUT_DRONE_HEALTH = BUILDER
+                .comment("Здоровье дрона (полусердца)")
+                .defineInRange("maxHealth", 12.0, 1.0, 1024.0);
+        SCOUT_DRONE_SPEED = BUILDER
+                .comment("Скорость полёта (атрибут flying_speed)")
+                .defineInRange("flyingSpeed", 0.4, 0.01, 4.0);
+        SCOUT_DRONE_HOVER_RADIUS = BUILDER
+                .comment("Радиус (в блоках) вокруг точки появления, в котором дрон кружит")
+                .defineInRange("hoverRadius", 8, 1, 64);
+        SCOUT_DRONE_HOVER_HEIGHT = BUILDER
+                .comment("Насколько блоков выше/ниже точки появления дрон может подняться/опуститься")
+                .defineInRange("hoverHeight", 3, 0, 32);
+        BUILDER.pop(2);
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private VivaConfig() {}
@@ -109,6 +133,22 @@ public final class VivaConfig {
 
     public static int zhivaHealthCheckTicks() {
         return getOr(ZHIVA_HEALTH_CHECK_TICKS, ZHIVA_HEALTH_CHECK_TICKS::getDefault);
+    }
+
+    public static double scoutDroneMaxHealth() {
+        return SPEC.isLoaded() ? SCOUT_DRONE_HEALTH.get() : SCOUT_DRONE_HEALTH.getDefault();
+    }
+
+    public static double scoutDroneFlyingSpeed() {
+        return SPEC.isLoaded() ? SCOUT_DRONE_SPEED.get() : SCOUT_DRONE_SPEED.getDefault();
+    }
+
+    public static int scoutDroneHoverRadius() {
+        return getOr(SCOUT_DRONE_HOVER_RADIUS, SCOUT_DRONE_HOVER_RADIUS::getDefault);
+    }
+
+    public static int scoutDroneHoverHeight() {
+        return getOr(SCOUT_DRONE_HOVER_HEIGHT, SCOUT_DRONE_HOVER_HEIGHT::getDefault);
     }
 
     public static double zhivaDeviceReach() {

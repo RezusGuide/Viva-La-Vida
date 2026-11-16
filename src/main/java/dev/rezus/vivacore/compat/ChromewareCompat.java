@@ -9,17 +9,18 @@ import net.neoforged.fml.ModList;
 
 /**
  * Единственная точка входа Viva Core в Create: Chromeware (необязательная зависимость, тесты 33 и 36).
- * В этом классе нет ни одной ссылки на классы Chromeware — их вызывает только {@link ChromewareBridge},
- * и только если мод загружен. Если Chromeware обновится и метод/поле пропадут, ловим LinkageError:
- * отвечаем «нет» и один раз пишем в лог.
+ * Viva Core не компилируется против Chromeware: {@link ChromewareBridge} находит его классы рефлексией,
+ * и только если мод загружен. Если Chromeware обновится и класс/поле/метод пропадут — отвечаем «нет»
+ * и один раз пишем в лог.
  * <p>
  * Что берём из Chromeware:
  * <ul>
  *   <li>кушетка операций — сущность-сиденье {@code chromeware:surgery_seat} (SurgerySeat extends Entity,
  *       на неё сажает SurgeryChairBlock через Surgery.seat → startRiding). Проверяется по id типа сущности
  *       из реестра — без классов Chromeware вообще;</li>
- *   <li>стоит ли оптика Kiroshi — {@code Implant.KIROSHI_OPTICS.installed(player)} через мост. Слоты Chromeware —
- *       attachment игрока с синхронизацией владельцу, поэтому работает и на сервере, и на клиенте (для себя).</li>
+ *   <li>стоит ли любая оптика Kiroshi (все 7 вариантов из {@code KiroshiOptics.ALL}) — через мост на рефлексии.
+ *       Слоты Chromeware — attachment игрока с синхронизацией владельцу, поэтому работает и на сервере,
+ *       и на клиенте (для себя). Тест 33.</li>
  * </ul>
  */
 public final class ChromewareCompat {
@@ -39,18 +40,38 @@ public final class ChromewareCompat {
         return SURGERY_SEAT.equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()));
     }
 
-    /** Стоит ли у игрока оптика Kiroshi. Без Chromeware или при несовместимой версии — false. */
-    public static boolean hasKiroshiOptics(Player player) {
+    /**
+     * Стоит ли у игрока любая оптика Kiroshi (для показа Живы, тест 33).
+     * Без Chromeware или при несовместимой версии — false.
+     */
+    public static boolean hasCyberOptics(Player player) {
         if (broken || !isLoaded()) {
             return false;
         }
         try {
-            return ChromewareBridge.hasKiroshiOptics(player);
-        } catch (LinkageError e) {
-            broken = true;
-            VivaCore.LOGGER.warn("Chromeware: версия не совместима с Viva Core ({}), проверка импланта отключена", e.toString());
+            return ChromewareBridge.hasCyberOptics(player);
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+            markBroken(e);
             return false;
         }
+    }
+
+    /** Сколько вариантов оптики нашлось в Chromeware (0 — мода нет или не совместим). Для тестов и статуса. */
+    public static int opticsVariants() {
+        if (broken || !isLoaded()) {
+            return 0;
+        }
+        try {
+            return ChromewareBridge.opticsCount();
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+            markBroken(e);
+            return 0;
+        }
+    }
+
+    private static void markBroken(Throwable e) {
+        broken = true;
+        VivaCore.LOGGER.warn("Chromeware: версия не совместима с Viva Core ({}), проверка импланта отключена", e.toString());
     }
 
     /** Для тестов: состояние «сломано». */

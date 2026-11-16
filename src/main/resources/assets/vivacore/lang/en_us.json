@@ -43,10 +43,13 @@
   "vivacore.zhiva.device.no_chip": "[TEXT: your chip is missing]",
   "vivacore.zhiva.device.wrong_state": "[TEXT: the device cannot do that now]",
   "vivacore.zhiva.device.too_far": "[TEXT: you are too far from the device]",
-  "vivacore.zhiva.command.status": "[TEXT: Zhiva of %1$s: state %2$s, couch %3$s, Chromeware %4$s, Kiroshi %5$s]",
+  "vivacore.zhiva.command.status": "[TEXT: Zhiva of %1$s: state %2$s, couch %3$s, Chromeware %4$s, optics %5$s]",
   "vivacore.zhiva.command.state_set": "[TEXT: Zhiva state of %1$s: %2$s]",
   "vivacore.zhiva.command.couch_done": "[TEXT: %s: foreign implant found, quest opened]",
   "vivacore.zhiva.command.couch_already": "[TEXT: %s already got this message]",
   "vivacore.common.yes": "[TEXT: yes]",
-  "vivacore.common.no": "[TEXT: no]"
+  "vivacore.common.no": "[TEXT: no]",
+  "entity.vivacore.scout_drone": "[TEXT: scout drone Meissa]",
+  "item.vivacore.scout_drone_spawn_egg": "[TEXT: scout drone spawn egg]",
+  "itemGroup.vivacore": "Viva Core"
 }

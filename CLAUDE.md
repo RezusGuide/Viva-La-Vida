@@ -9,9 +9,11 @@
 - В сборке: Create 6.0.10, Create Aeronautics 1.3.2, Sable 2.0.6, GeckoLib 4.9.3, Jade 15.10.6, Curios 9.5.1.
 - Create в dev: `com.simibubi.create:create-1.21.1:6.0.10-280:slim` (сборка 280 = git ac0c444, тот же коммит, что jar в инстансе),
   Ponder 1.0.82+mc1.21.1, Flywheel 1.0.6, Registrate MC1.21-1.3.0+67. Версии — в `gradle.properties`.
-- Create: Chromeware 1.3.0 — **необязательная** зависимость. Для компиляции нужен `chromeware-1.3.0.jar` в корне репозитория
-  (в git не кладём: All Rights Reserved; `/*.jar` в .gitignore; другой путь — `-Pchromeware_jar=...`). Без него build падает
-  с понятной ошибкой. В игре без Chromeware всё работает.
+- Create: Chromeware 1.3.0 — **необязательная** зависимость, подключена только рефлексией (`compat/ChromewareBridge`):
+  build не требует jar Chromeware. Jar для изучения и тестов совместимости можно держать в корне (в git не кладём:
+  All Rights Reserved; `/*.jar` в .gitignore) и временно класть в `run/mods`.
+- GeckoLib 4.9.3: `software.bernie.geckolib:geckolib-neoforge-1.21.1:4.9.3` с
+  `https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/` (sha1 совпадает с jar инстанса).
 - Инстанс Prism с jar всех модов сборки:
   `C:\Users\give_\AppData\Roaming\PrismLauncher\instances\Viva La Vida\minecraft\mods`.
   Если зависимости нет на maven — бери jar оттуда (`compileOnly` / `localRuntime`), не качай с непонятных сайтов.
@@ -30,6 +32,11 @@
   с Create Deep Seas (create_submarine 3.3.0), Sable 2.0.6 и Aeronautics 1.3.2. Внимание: моды с измерениями
   оставляют их в `run/world` — потом будет безвредная ERROR про неизвестное измерение.
 - `./gradlew runClient` — dev-клиент.
+- `./gradlew runClient -PvivaQuickPlay=<мир>` — клиент сам заходит в мир из `run/saves/<мир>` и включает
+  `client/DevScreenshots`: 5 скриншотов в `run/screenshots/vivacore-dev-N.png`, потом клиент закрывается.
+  Так агент смотрит модели в игре без ручного управления (картинки читаются инструментом Read). Сцену ставит датапак
+  мира (`run/saves/<мир>/datapacks/...`, функция в теге `minecraft:tick`). Свежий мир: временно `level-name` в
+  `run/server.properties` → runServer → stop → перенести папку мира в `run/saves`.
 
 ## Структура
 - `VivaCore` — точка входа; `VivaConfig` — серверный конфиг; `command/VivaCommands` — корень `/viva`.
@@ -40,8 +47,12 @@
   (`data/vivacore/structure/empty.nbt`, 1×1×1 воздух) и `vivacore:wheels` (12×8×14 воздух).
   Вода для колёс в тестах — пузырьковые столбы над песком душ (Create считает их потоком).
 - Тесты по «09 Тесты»: 35 — дома (`home/HomeGameTests`), 17 — лимит водяных колёс (`wheels/WheelGameTests`),
-  36 — твист с имплантом Живы и 33 (заготовка Kiroshi) — `zhiva/ZhivaGameTests`. Тест 7 (баланс Chromeware) —
-  разведка в `docs/chromeware-balance.md`.
+  36 — твист с имплантом Живы и 33 (любая из 7 оптик Kiroshi) — `zhiva/ZhivaGameTests`, 24 (первый шаг армии:
+  дрон-разведчик) — `army/ArmyGameTests`. Тест 7 (баланс Chromeware) — разведка в `docs/chromeware-balance.md`.
+- Армия (`army/`): `ScoutDrone` — GeckoLib-сущность `vivacore:scout_drone`, модель в `assets/vivacore/{geo,animations,
+  textures}/entity/scout_drone*`, исходник Blockbench — `art/models/scout_drone.bbmodel`. Рендерер — `client/VivaClient`.
+  Модели плагина смотрят в −Z (так же, как сущности в игре — проверено скриншотами), правая сторона модели +X;
+  имена костей left/right в моделях могут быть перепутаны — в коде к костям по именам не обращаться.
 - Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое
   соединение их не принимает, сервер падает. Бери `ZhivaGameTests#player`: ServerPlayer вне мира с «глухим» соединением.
   `ServerPlayer.moveTo` без соединения падает — используй `setPos`.
@@ -49,9 +60,10 @@
   только владельцу); логика — `Zhiva`; голос — `ZhivaVoice` (антиспам); помощь — `ZhivaHelp` (здоровье + пустые точки
   входа для рейдов и советов); устройство — `zhiva/device`, пакеты терминала — `zhiva/net`, экран — `client/`.
 - Chromeware: всё только через `compat/ChromewareCompat` (без ссылок на классы Chromeware) → `ChromewareBridge`
-  (ссылки есть, грузится только если мод загружен, LinkageError → «нет» + одна строка в логе). Кушетка — событие NeoForge
-  `EntityMountEvent` на сущность `chromeware:surgery_seat`, без миксинов. Хрупкие места при обновлении Chromeware:
-  id `chromeware:surgery_seat`, `Implant.KIROSHI_OPTICS`, `Implant#installed(Player)`.
+  (рефлексия: классы и метод ищутся один раз, кеш в static-полях; не нашлось → «нет» + одна строка в логе). Кушетка —
+  событие NeoForge `EntityMountEvent` на сущность `chromeware:surgery_seat`, без миксинов. Хрупкие места при обновлении
+  Chromeware: id `chromeware:surgery_seat`, `KiroshiOptics.ALL` (запасной путь — имена 7 оптик в enum `Implant`),
+  `Implant#installed(Player)`, attachment `chromeware:face` (только в тесте).
 - Конфиги NeoForge 21.1.264 (и наш, и чужие) лежат в `config/` (в dev — `run/config/`), не в `world/serverconfig/`.
 - Миксины: `src/main/resources/vivacore.mixins.json`, классы в `dev.rezus.vivacore.mixin`:
   - `WaterWheelBlockEntityMixin` (Create `WaterWheelBlockEntity`): `getGeneratedSpeed` HEAD cancellable → 0 у лишнего

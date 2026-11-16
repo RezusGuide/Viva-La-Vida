@@ -33,6 +33,12 @@ repositories {
         url = "https://maven.createmod.net"
         content { includeGroupAndSubgroups("com.simibubi"); includeGroupAndSubgroups("net.createmod"); includeGroupAndSubgroups("dev.engine-room") }
     }
+    // GeckoLib (модели и анимации сущностей армии)
+    maven {
+        name = "GeckoLib"
+        url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
+        content { includeGroup("software.bernie.geckolib") }
+    }
     // Registrate (зависимость Create)
     maven {
         name = "Registrate"
@@ -65,6 +71,12 @@ neoForge {
     runs {
         client {
             client()
+            // Для проверки моделей без ручного управления: ./gradlew runClient -PvivaQuickPlay=<мир из run/saves>
+            // сразу заходит в мир и включает dev-скриншоты (client/DevScreenshots)
+            if (project.hasProperty('vivaQuickPlay')) {
+                programArguments.addAll('--quickPlaySingleplayer', project.property('vivaQuickPlay').toString())
+                systemProperty 'vivacore.devScreenshots', 'true'
+            }
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
@@ -134,13 +146,9 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
-    // Create: Chromeware — необязательная зависимость, только для компиляции ChromewareBridge.
-    // Jar не в git (лицензия All Rights Reserved): положи его в корень репозитория (или задай -Pchromeware_jar=путь).
-    def chromewareJar = file(project.findProperty("chromeware_jar") ?: "chromeware-${chromeware_version}.jar")
-    if (!chromewareJar.exists()) {
-        throw new GradleException("Нет ${chromewareJar} — положи jar Create: Chromeware ${chromeware_version} в корень репозитория")
-    }
-    compileOnly files(chromewareJar)
+    // GeckoLib 4.9.3 — тот же jar, что в инстансе (sha1 совпадает)
+    implementation("software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}")
+
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -178,6 +186,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_license            : mod_license,
             mod_version            : mod_version,
             create_version_range   : create_version_range,
+            geckolib_version_range : geckolib_version_range,
     ]
     inputs.properties replaceProperties
     expand replaceProperties

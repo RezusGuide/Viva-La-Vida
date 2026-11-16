@@ -5,7 +5,9 @@ import dev.rezus.vivacore.command.VivaCommands;
 import dev.rezus.vivacore.home.HomeEvents;
 import dev.rezus.vivacore.zhiva.ZhivaEvents;
 import dev.rezus.vivacore.zhiva.net.ZhivaNetwork;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
@@ -25,6 +27,9 @@ public final class VivaCore {
         container.registerConfig(ModConfig.Type.SERVER, VivaConfig.SPEC);
 
         VivaRegistries.register(modBus);
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            dev.rezus.vivacore.client.VivaClient.init(modBus);
+        }
         modBus.addListener(ZhivaNetwork::register);
 
         NeoForge.EVENT_BUS.addListener(VivaCommands::onRegisterCommands);

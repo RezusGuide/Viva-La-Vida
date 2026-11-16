@@ -196,7 +196,7 @@ public final class ZhivaGameTests {
     @GameTest(template = EMPTY)
     public static void zhivaWithoutChromewareSafe(GameTestHelper h) {
         ServerPlayer p = player(h);
-        boolean kiroshi = ChromewareCompat.hasKiroshiOptics(p);
+        boolean kiroshi = ChromewareCompat.hasCyberOptics(p);
         if (!ChromewareCompat.isLoaded()) {
             h.assertTrue(!kiroshi, "без Chromeware Kiroshi = нет");
         }
@@ -239,8 +239,53 @@ public final class ZhivaGameTests {
         h.assertTrue(p.startRiding(seat, true), "игрок сел на сиденье");
         h.assertTrue(Zhiva.data(p).foreignImplant(), "посадка на кушетку открыла квест");
         // Kiroshi у нового игрока нет — и обёртка не сломалась на настоящем Chromeware
-        h.assertTrue(!ChromewareCompat.hasKiroshiOptics(p) && !ChromewareCompat.isBroken(), "Kiroshi = нет, обёртка цела");
+        h.assertTrue(!ChromewareCompat.hasCyberOptics(p) && !ChromewareCompat.isBroken(), "Kiroshi = нет, обёртка цела");
         seat.discard();
         h.succeed();
+    }
+
+    /**
+     * Тест 33: оптика для показа Живы — любая из 7 оптик Kiroshi. С Chromeware в run/mods ставим игроку в слот
+     * лица базовую оптику, потом «Часового» (sentry) — оба дают true; пустой слот — false.
+     * Слот ставится рефлексией в attachment chromeware:face (CyberwareSlots / InstalledImplant).
+     * Без Chromeware — проверка отвечает «нет».
+     */
+    @GameTest(template = EMPTY)
+    public static void zhivaCyberOptics(GameTestHelper h) throws Exception {
+        ServerPlayer p = player(h);
+        if (!ChromewareCompat.isLoaded()) {
+            h.assertTrue(!ChromewareCompat.hasCyberOptics(p) && ChromewareCompat.opticsVariants() == 0, "без Chromeware — нет");
+            h.succeed();
+            return;
+        }
+        h.assertTrue(ChromewareCompat.opticsVariants() == 7, "вариантов оптики: " + ChromewareCompat.opticsVariants());
+        h.assertTrue(!ChromewareCompat.hasCyberOptics(p), "без оптики — нет");
+        for (String optic : List.of("kiroshi_optics", "sentry")) {
+            setFaceImplant(p, optic);
+            h.assertTrue(ChromewareCompat.hasCyberOptics(p), "оптика " + optic + " → да");
+        }
+        setFaceImplant(p, null);
+        h.assertTrue(!ChromewareCompat.hasCyberOptics(p) && !ChromewareCompat.isBroken(), "слот пуст → нет, обёртка цела");
+        h.succeed();
+    }
+
+    /** Поставить имплант Chromeware в слот лица 0 (или очистить), рефлексией — без компиляции против Chromeware. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void setFaceImplant(ServerPlayer p, @Nullable String implantId) throws Exception {
+        ClassLoader loader = ZhivaGameTests.class.getClassLoader();
+        Class<?> slotsClass = Class.forName("com.chromeware.cyberware.CyberwareSlots", true, loader);
+        Class<?> installedClass = Class.forName("com.chromeware.cyberware.InstalledImplant", true, loader);
+        java.util.Map<Integer, Object> sockets = new java.util.HashMap<>();
+        if (implantId != null) {
+            ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("chromeware", implantId)));
+            if (stack.isEmpty()) throw new IllegalStateException("нет предмета chromeware:" + implantId);
+            sockets.put(0, installedClass.getConstructor(ItemStack.class).newInstance(stack));
+        }
+        Object slots = slotsClass.getConstructor(java.util.Map.class).newInstance(sockets);
+        var type = net.neoforged.neoforge.registries.NeoForgeRegistries.ATTACHMENT_TYPES.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("chromeware", "face"));
+        if (type == null) throw new IllegalStateException("нет attachment chromeware:face");
+        p.setData((net.neoforged.neoforge.attachment.AttachmentType) type, slots);
     }
 }

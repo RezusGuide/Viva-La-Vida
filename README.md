@@ -23,8 +23,10 @@
 `/viva жива кушетка <ник>` (EN: `/viva zhiva status|state|couch`). Блок «продвинутое устройство имплантирования» —
 `vivacore:implant_device`.
 
-Для сборки нужен jar Create: Chromeware 1.3.0 в корне репозитория (`chromeware-1.3.0.jar`, в git его нет, лицензия
-All Rights Reserved) — Viva Core компилирует против него одну обёртку; в игре Chromeware необязателен.
+Create: Chromeware — необязательный: Viva Core читает его рефлексией, для сборки jar Chromeware не нужен.
+
+Армия: дрон-разведчик `vivacore:scout_drone` (GeckoLib; яйцо призыва во вкладке Viva Core, сам не спавнится).
+Проверка моделей в игре без ручного управления: `./gradlew runClient -PvivaQuickPlay=<мир из run/saves>`.
 
 Баланс имплантов Chromeware: [docs/chromeware-balance.md](docs/chromeware-balance.md).
 

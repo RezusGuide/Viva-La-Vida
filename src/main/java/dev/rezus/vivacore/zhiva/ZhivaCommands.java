@@ -46,7 +46,7 @@ public final class ZhivaCommands {
                 data.state().getSerializedName(),
                 yesNo(data.foreignImplant()),
                 yesNo(ChromewareCompat.isLoaded()),
-                yesNo(ChromewareCompat.hasKiroshiOptics(player))), false);
+                yesNo(ChromewareCompat.hasCyberOptics(player))), false);
         return data.state().ordinal();
     }
 
