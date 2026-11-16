@@ -1,0 +1,14 @@
+{
+  "vivacore.home.approved": "[TEXT: home approved: players %1$s, position %2$s]",
+  "vivacore.home.removed": "[TEXT: player %s removed from home]",
+  "vivacore.home.error.too_many": "[TEXT: at most %s players per home]",
+  "vivacore.home.error.duplicate": "[TEXT: player %s given twice]",
+  "vivacore.home.error.already_housed": "[TEXT: player %s already has a home]",
+  "vivacore.home.error.empty": "[TEXT: no players given]",
+  "vivacore.home.error.not_single": "[TEXT: exactly one player needed, found %s]",
+  "vivacore.home.error.not_housed": "[TEXT: player %s has no home]",
+  "vivacore.home.list.header": "[TEXT: home list: housed %1$s, homeless %2$s]",
+  "vivacore.home.list.entry": "[TEXT: home: %1$s, position %2$s]",
+  "vivacore.home.list.homeless": "[TEXT: homeless: %s]",
+  "vivacore.home.list.no_homeless": "[TEXT: everyone has a home]"
+}

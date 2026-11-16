@@ -1,0 +1,14 @@
+{
+  "vivacore.home.approved": "[ТЕКСТ: дом одобрен: игроки %1$s, координаты %2$s]",
+  "vivacore.home.removed": "[ТЕКСТ: игрок %s снят с дома]",
+  "vivacore.home.error.too_many": "[ТЕКСТ: в доме не больше %s игроков]",
+  "vivacore.home.error.duplicate": "[ТЕКСТ: игрок %s указан дважды]",
+  "vivacore.home.error.already_housed": "[ТЕКСТ: у игрока %s уже есть дом]",
+  "vivacore.home.error.empty": "[ТЕКСТ: не указан ни один игрок]",
+  "vivacore.home.error.not_single": "[ТЕКСТ: нужен ровно один игрок, найдено %s]",
+  "vivacore.home.error.not_housed": "[ТЕКСТ: у игрока %s нет дома]",
+  "vivacore.home.list.header": "[ТЕКСТ: список домов: с домом %1$s, без дома %2$s]",
+  "vivacore.home.list.entry": "[ТЕКСТ: дом: %1$s, координаты %2$s]",
+  "vivacore.home.list.homeless": "[ТЕКСТ: без дома: %s]",
+  "vivacore.home.list.no_homeless": "[ТЕКСТ: все игроки с домом]"
+}
