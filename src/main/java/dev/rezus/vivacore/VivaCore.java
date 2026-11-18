@@ -25,6 +25,7 @@ public final class VivaCore {
     public VivaCore(IEventBus modBus, ModContainer container) {
         // Все числа функций живут в серверном конфиге: config/vivacore-server.toml (так кладёт NeoForge 21.1.264, проверено в dev)
         container.registerConfig(ModConfig.Type.SERVER, VivaConfig.SPEC);
+        container.registerConfig(ModConfig.Type.CLIENT, VivaClientConfig.SPEC);
 
         VivaRegistries.register(modBus);
         if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -38,6 +39,9 @@ public final class VivaCore {
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onMount);
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onLogout);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.army.Army::onDeath);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.army.Army::onServerTick);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.army.Army::onLogout);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) -> {
             if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) dev.rezus.vivacore.orion.Orion.giveNoteIfNeeded(p);
         });

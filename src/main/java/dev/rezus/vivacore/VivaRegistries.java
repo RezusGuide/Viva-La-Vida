@@ -1,6 +1,5 @@
 package dev.rezus.vivacore;
 
-import dev.rezus.vivacore.army.ScoutDrone;
 import dev.rezus.vivacore.zhiva.ZhivaData;
 import dev.rezus.vivacore.zhiva.device.ImplantDeviceBlock;
 import dev.rezus.vivacore.zhiva.device.ZhivaChipItem;
@@ -38,26 +37,19 @@ public final class VivaRegistries {
             DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, VivaCore.MOD_ID);
     public static final DeferredRegister<EntityType<?>> ENTITIES =
             DeferredRegister.create(Registries.ENTITY_TYPE, VivaCore.MOD_ID);
+    public static final DeferredRegister<net.minecraft.world.level.block.entity.BlockEntityType<?>> BLOCK_ENTITIES =
+            DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, VivaCore.MOD_ID);
+
+    /** Блок-сущность двери ОРИОНа (анимация сдвига створки). */
+    public static final DeferredHolder<net.minecraft.world.level.block.entity.BlockEntityType<?>,
+            net.minecraft.world.level.block.entity.BlockEntityType<dev.rezus.vivacore.orion.block.OrionDoorBlockEntity>> ORION_DOOR_BE =
+            BLOCK_ENTITIES.register("orion_door", () -> net.minecraft.world.level.block.entity.BlockEntityType.Builder
+                    .of(dev.rezus.vivacore.orion.block.OrionDoorBlockEntity::new,
+                            dev.rezus.vivacore.orion.block.OrionBlocks.ORION_DOOR.get())
+                    .build(null));
+
     public static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, VivaCore.MOD_ID);
-
-    // --- армия (заметка «16 Враги-армия», тест 24) ---
-
-    /**
-     * Дрон-разведчик. Хитбокс 1.2 × 0.9: корпус модели ~11 px в ширину, с винтами ~24 px (1.5 блока),
-     * высота ~13 px; хитбокс по корпусу с частью винтов, чтобы дрон пролезал в проёмы 2 блока.
-     * MONSTER — категория будущей армии; естественного спавна нет (не добавлен ни в один биом).
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<ScoutDrone>> SCOUT_DRONE = ENTITIES.register("scout_drone",
-            () -> EntityType.Builder.of(ScoutDrone::new, MobCategory.MONSTER)
-                    .sized(1.2f, 0.9f)
-                    .eyeHeight(0.45f)
-                    .clientTrackingRange(10)
-                    .build(VivaCore.MOD_ID + ":scout_drone"));
-
-    /** Яйцо призыва дрона — только для тестов, во вкладке Viva Core. Чёрно-жёлтый — цвета армии. */
-    public static final DeferredItem<DeferredSpawnEggItem> SCOUT_DRONE_EGG = ITEMS.register("scout_drone_spawn_egg",
-            () -> new DeferredSpawnEggItem(SCOUT_DRONE, 0x1C1C1C, 0xF2C200, new Item.Properties()));
 
     // --- Жива (заметка «02 Сюжет и Жива», тест 36) ---
 
@@ -100,28 +92,26 @@ public final class VivaRegistries {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.vivacore"))
-                    .icon(() -> new ItemStack(SCOUT_DRONE_EGG.get()))
+                    .icon(() -> new ItemStack(dev.rezus.vivacore.army.ArmyEntities.egg(dev.rezus.vivacore.army.MachineType.SCOUT_DRONE).get()))
                     .displayItems((params, out) -> {
-                        out.accept(SCOUT_DRONE_EGG.get());
+                        for (var mt : dev.rezus.vivacore.army.MachineType.values()) out.accept(dev.rezus.vivacore.army.ArmyEntities.egg(mt).get());
                         out.accept(IMPLANT_DEVICE_ITEM.get());
                         dev.rezus.vivacore.orion.block.OrionBlocks.items().forEach(i -> out.accept(i.get()));
                         dev.rezus.vivacore.orion.OrionItems.all().forEach(i -> out.accept(i.get()));
                     })
                     .build());
 
-    public static void onAttributes(EntityAttributeCreationEvent event) {
-        event.put(SCOUT_DRONE.get(), ScoutDrone.createAttributes().build());
-    }
-
     public static void register(IEventBus modBus) {
         dev.rezus.vivacore.orion.block.OrionBlocks.init();
         dev.rezus.vivacore.orion.OrionItems.init();
+        dev.rezus.vivacore.army.ArmyEntities.init();
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         DATA_COMPONENTS.register(modBus);
         ATTACHMENTS.register(modBus);
         ENTITIES.register(modBus);
+        BLOCK_ENTITIES.register(modBus);
         TABS.register(modBus);
-        modBus.addListener(VivaRegistries::onAttributes);
+        modBus.addListener(dev.rezus.vivacore.army.ArmyEntities::onAttributes);
     }
 }

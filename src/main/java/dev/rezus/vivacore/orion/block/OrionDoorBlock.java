@@ -25,9 +25,14 @@ import net.minecraft.world.phys.BlockHitResult;
  *   <li>Закрывается обычным ПКМ — с ключом или без: закрыть за собой может любой, открыть — только с ключом.</li>
  *   <li>Рукой без ключа, редстоуном, ветровым зарядом и мобами не открывается: тип двери «не открывается рукой»
  *       (так жители и зомби не трогают её, как железную), а сигнал редстоуна игнорируется.</li>
+ *   <li>Створка не поворачивается, а уезжает вверх (или вниз — конфиг orion.doorSlidesDown): статическая модель
+ *       не рисуется, створку рисует рендерер блок-сущности нижней половины (client/OrionDoorRenderer) — плавно
+ *       сжимает её к верху (низу) проёма за orion.doorSlideTicks тиков, поэтому она не вылезает за проём.
+ *       Открытая дверь проходима; у кромки, куда уехала створка, остаётся тонкая полоска — по ней кликают,
+ *       чтобы закрыть.</li>
  * </ul>
  */
-public class OrionDoorBlock extends DoorBlock {
+public class OrionDoorBlock extends DoorBlock implements net.minecraft.world.level.block.EntityBlock {
     /** Тип замка: не открывается рукой и ветровым зарядом, звуки металла. Регистрируется по имени — нужен кодеку. */
     public static final BlockSetType ORION = BlockSetType.register(new BlockSetType("vivacore_orion",
             false, false, false, BlockSetType.PressurePlateSensitivity.MOBS, SoundType.METAL,
@@ -69,6 +74,48 @@ public class OrionDoorBlock extends DoorBlock {
             player.displayClientMessage(Component.translatable("vivacore.orion.door.locked"), true);
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    // ---------------------------------------------------------------- сдвижная створка
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER
+                ? new OrionDoorBlockEntity(pos, state) : null;
+    }
+
+    /** Статическую модель не рисуем — створку рисует рендерер блок-сущности. Модели остаются для частиц. */
+    @Override
+    protected net.minecraft.world.level.block.RenderShape getRenderShape(BlockState state) {
+        return net.minecraft.world.level.block.RenderShape.ENTITYBLOCK_ANIMATED;
+    }
+
+    private static final net.minecraft.world.phys.shapes.VoxelShape TOP_STRIP = Block.box(0, 13, 0, 16, 16, 16);
+    private static final net.minecraft.world.phys.shapes.VoxelShape BOTTOM_STRIP = Block.box(0, 0, 0, 16, 3, 16);
+
+    /** Открытая: только полоска створки у кромки, куда она уехала (в той половине, где кромка). */
+    @Override
+    protected net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state, net.minecraft.world.level.BlockGetter level,
+                                                                  BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+        net.minecraft.world.phys.shapes.VoxelShape closed = super.getShape(state.setValue(OPEN, false), level, pos, context);
+        if (!isOpen(state)) {
+            return closed;
+        }
+        boolean down = dev.rezus.vivacore.VivaConfig.orionDoorSlidesDown();
+        boolean lower = state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER;
+        if (down != lower) {
+            return net.minecraft.world.phys.shapes.Shapes.empty();
+        }
+        return net.minecraft.world.phys.shapes.Shapes.join(closed, down ? BOTTOM_STRIP : TOP_STRIP,
+                net.minecraft.world.phys.shapes.BooleanOp.AND);
+    }
+
+    /** Открытая дверь проходима целиком. */
+    @Override
+    protected net.minecraft.world.phys.shapes.VoxelShape getCollisionShape(BlockState state, net.minecraft.world.level.BlockGetter level,
+                                                                           BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+        return isOpen(state) ? net.minecraft.world.phys.shapes.Shapes.empty()
+                : super.getShape(state, level, pos, context);
     }
 
     /** Редстоун дверь не открывает и не закрывает. */

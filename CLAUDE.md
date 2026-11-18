@@ -36,7 +36,9 @@
   `client/DevScreenshots`: 5 скриншотов в `run/screenshots/vivacore-dev-N.png`, потом клиент закрывается.
   Так агент смотрит модели в игре без ручного управления (картинки читаются инструментом Read). После 60 тиков хук
   держит поворот камеры (окно клиента ловит мышь пользователя). `-PvivaDevScreen=code_terminal` — последний кадр
-  с открытым экраном терминала. Сцену ставит датапак
+  с открытым экраном терминала. `-PvivaDevAction=wave` — волна у игрока на тике 130; `-PvivaDevAction=profile` —
+  средний MSPT встроенного сервера в лог (профиль встроенного сервера при этом не пишется — для разбивки нагрузки
+  используй dedicated-сервер и `/perf start` из консоли: отчёт в `run/debug/profiling/*.zip`). Сцену ставит датапак
   мира (`run/saves/<мир>/datapacks/...`, функция в теге `minecraft:tick`). Свежий мир: временно `level-name` в
   `run/server.properties` → runServer → stop → перенести папку мира в `run/saves`.
 
@@ -51,15 +53,21 @@
 - Тесты по «09 Тесты»: 35 — дома (`home/HomeGameTests`), 17 — лимит водяных колёс (`wheels/WheelGameTests`),
   36 — твист с имплантом Живы и 33 (любая из 7 оптик Kiroshi) — `zhiva/ZhivaGameTests`, 24 (первый шаг армии:
   дрон-разведчик) — `army/ArmyGameTests`. Тест 7 (баланс Chromeware) — разведка в `docs/chromeware-balance.md`.
-- Армия (`army/`): `ScoutDrone` — GeckoLib-сущность `vivacore:scout_drone`, модель в `assets/vivacore/{geo,animations,
-  textures}/entity/scout_drone*`, исходник Blockbench — `art/models/scout_drone.bbmodel`. Рендерер — `client/VivaClient`.
+- Армия (`army/`, тесты 24 и 27): 13 машин в `MachineType` (данные моделей и значения по умолчанию; баланс — конфиг
+  `army.<id>.*`), основа `OrionMachine` (наземные), `FlyingMachine` (летающие), `ScoutDrone` (поднимает тревогу).
+  Регистрация — `ArmyEntities`, рендереры — `client/MachineRenderer` (+ `Swarm`: одна сущность, N моделек — клиентский
+  конфиг `army.swarmUnits`). Тревога участков — `Alarm`/`AlarmData`, волны и лимиты — `Waves`, выключатели и события —
+  `Army` (армия активна = `army.enabled` и программа ОРИОНа не отменена). Дроп — `data/vivacore/loot_table/entities/`.
+  Модели — `assets/vivacore/{geo,animations,textures}/entity/<id>*`, исходники — `art/models/<id>.bbmodel`.
+  Цели машин добавляются в конструкторе `OrionMachine`, а не в `registerGoals` (тот вызывается до присвоения полей).
   Модели плагина смотрят в −Z (так же, как сущности в игре — проверено скриншотами), правая сторона модели +X;
   имена костей left/right в моделях могут быть перепутаны — в коде к костям по именам не обращаться.
 - Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое
   соединение их не принимает, сервер падает. Бери `gametest/TestPlayers.player(h, rel)`: ServerPlayer вне мира с «глухим»
   соединением. `ServerPlayer.moveTo` без соединения падает — используй `setPos`.
 - ОРИОН (`orion/`): блоки обломков корабля и лаборатории (`orion/block/OrionBlocks`), дверь с латунным замком
-  (`OrionDoorBlock`: свой BlockSetType «не открывается рукой», редстоун игнорируется), терминал кода (`CodeTerminalBlock`,
+  (`OrionDoorBlock`: свой BlockSetType «не открывается рукой», редстоун игнорируется; створка уезжает вверх/вниз —
+  рисует `client/OrionDoorRenderer` через блок-сущность нижней половины), терминал кода (`CodeTerminalBlock`,
   экран `client/CodeTerminalScreen`, пакеты `orion/net`), флаг мира «программа отменена» (`OrionData`,
   `Orion.isProgramCancelled(server)`), записка с кодом (attachment `vivacore:orion_note_given`), детали армии
   (`OrionItems`). Тест 34 (часть) — `orion/OrionGameTests`. Исходники моделей блоков — `art/blocks/`.

@@ -28,6 +28,11 @@ public final class Orion {
         return OrionData.get(server).programCancelled();
     }
 
+    /** Для тестов: поставить флаг отмены без терминала. */
+    public static void cancel(MinecraftServer server, String by) {
+        OrionData.get(server).cancel(by, server.overworld().getGameTime());
+    }
+
     /** Для оператора и тестов: снять флаг отмены. */
     public static void reset(MinecraftServer server) {
         OrionData.get(server).reset();

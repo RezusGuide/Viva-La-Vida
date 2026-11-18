@@ -76,6 +76,9 @@ neoForge {
             if (project.hasProperty('vivaQuickPlay')) {
                 programArguments.addAll('--quickPlaySingleplayer', project.property('vivaQuickPlay').toString())
                 systemProperty 'vivacore.devScreenshots', 'true'
+                if (project.hasProperty('vivaDevAction')) {
+                    systemProperty 'vivacore.devAction', project.property('vivaDevAction').toString()
+                }
                 if (project.hasProperty('vivaDevScreen')) {
                     systemProperty 'vivacore.devScreen', project.property('vivaDevScreen').toString()
                 }

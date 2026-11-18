@@ -28,7 +28,10 @@ Create: Chromeware — необязательный: Viva Core читает ег
 ОРИОН (оператор): `/viva орион статус | сбросить` (EN: `/viva orion status | reset`). Код терминала — конфиг
 `orion.accessCode`; дверь ОРИОНа открывается только латунным ключом.
 
-Армия: дрон-разведчик `vivacore:scout_drone` (GeckoLib; яйцо призыва во вкладке Viva Core, сам не спавнится).
+Армия ОРИОНа: 13 машин (`vivacore:scout_drone`, `infantry_light`, `infantry_heavy`, `sniper`, `mech_walker`, `tank`,
+`helicopter`, `swarm_unit`, `core_guardian` и заражённые версии), яйца во вкладке Viva Core, естественного спавна нет.
+Тревога участков и волны подкрепления; выключено, пока `army.enabled = false`.
+Оператор: `/viva армия вкл | выкл | тревога <0–4> | статус` (EN: `/viva army on | off | alarm <0–4> | status`).
 Проверка моделей в игре без ручного управления: `./gradlew runClient -PvivaQuickPlay=<мир из run/saves>`.
 
 Баланс имплантов Chromeware: [docs/chromeware-balance.md](docs/chromeware-balance.md).

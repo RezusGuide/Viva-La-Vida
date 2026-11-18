@@ -92,6 +92,14 @@ public final class OrionGameTests {
         h.getLevel().getBlockState(abs).useItemOn(key, h.getLevel(), p, InteractionHand.MAIN_HAND, hit(abs));
         h.assertTrue(h.getLevel().getBlockState(abs).getValue(DoorBlock.OPEN), "с ключом — открыта");
         h.assertTrue(p.getMainHandItem().is(OrionItems.BRASS_KEY.get()) && p.getMainHandItem().getCount() == 1, "ключ не тратится");
+        // сдвижная створка: открытая дверь проходима целиком, полоска для клика — у кромки, куда уехала створка
+        var ctx = net.minecraft.world.phys.shapes.CollisionContext.empty();
+        h.assertTrue(h.getLevel().getBlockState(abs).getCollisionShape(h.getLevel(), abs, ctx).isEmpty()
+                && h.getLevel().getBlockState(abs.above()).getCollisionShape(h.getLevel(), abs.above(), ctx).isEmpty(),
+                "открытая дверь проходима");
+        boolean down = VivaConfig.orionDoorSlidesDown();
+        BlockPos strip = down ? abs : abs.above();
+        h.assertTrue(!h.getLevel().getBlockState(strip).getShape(h.getLevel(), strip, ctx).isEmpty(), "полоска створки осталась для клика");
 
         p.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         h.getLevel().getBlockState(abs).useWithoutItem(h.getLevel(), p, hit(abs));
