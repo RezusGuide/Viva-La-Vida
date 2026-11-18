@@ -31,11 +31,17 @@ public final class VivaCore {
             dev.rezus.vivacore.client.VivaClient.init(modBus);
         }
         modBus.addListener(ZhivaNetwork::register);
+        modBus.addListener(dev.rezus.vivacore.orion.net.OrionNetwork::register);
 
         NeoForge.EVENT_BUS.addListener(VivaCommands::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(HomeEvents::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onMount);
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(ZhivaEvents::onLogout);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) -> {
+            if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) dev.rezus.vivacore.orion.Orion.giveNoteIfNeeded(p);
+        });
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent e) ->
+                dev.rezus.vivacore.orion.Orion.forget(e.getEntity().getUUID()));
     }
 }

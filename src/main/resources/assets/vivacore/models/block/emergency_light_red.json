@@ -1,0 +1,9 @@
+{
+  "parent": "vivacore:block/emergency_light",
+  "textures": {
+    "0": "vivacore:block/emergency_light_red",
+    "particle": "vivacore:block/emergency_light_red",
+    "glow": "vivacore:block/emergency_light_red_glowmask"
+  },
+  "render_type": "minecraft:cutout"
+}

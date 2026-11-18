@@ -1,5 +1,19 @@
 {
   "values": [
-    "vivacore:implant_device"
+    "vivacore:cable_bundle",
+    "vivacore:code_terminal",
+    "vivacore:cryo_capsule",
+    "vivacore:dead_console",
+    "vivacore:emergency_light",
+    "vivacore:emergency_light_red",
+    "vivacore:hull_panel",
+    "vivacore:hull_panel_burnt",
+    "vivacore:hull_panel_dented",
+    "vivacore:hull_vent",
+    "vivacore:implant_device",
+    "vivacore:orion_door",
+    "vivacore:orion_floor",
+    "vivacore:orion_wall",
+    "vivacore:orion_wall_hazard"
   ]
 }

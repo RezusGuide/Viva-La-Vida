@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "vivacore:block/hull_panel",
+    "side": "vivacore:block/hull_vent"
+  }
+}

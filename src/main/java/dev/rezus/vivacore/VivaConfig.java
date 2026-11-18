@@ -91,6 +91,33 @@ public final class VivaConfig {
         BUILDER.pop(2);
     }
 
+    // --- orion: лаборатория ОРИОНа и обломки корабля (заметка «17 Три стороны конфликта», тест 34) ---
+    public static final ModConfigSpec.ConfigValue<String> ORION_ACCESS_CODE;
+    public static final ModConfigSpec.DoubleValue ORION_ATTEMPT_COOLDOWN;
+    public static final ModConfigSpec.BooleanValue ORION_GIVE_NOTE;
+    public static final ModConfigSpec.DoubleValue ORION_TERMINAL_REACH;
+    public static final ModConfigSpec.IntValue ORION_EMERGENCY_LIGHT;
+
+    static {
+        BUILDER.comment("Лаборатория ОРИОНа").push("orion");
+        ORION_ACCESS_CODE = BUILDER
+                .comment("Код доступа в терминале лаборатории. Сравнивается строго: регистр и пробелы важны")
+                .define("accessCode", "alpha-9G483#67");
+        ORION_ATTEMPT_COOLDOWN = BUILDER
+                .comment("Пауза между попытками ввода кода, секунды")
+                .defineInRange("attemptCooldownSeconds", 1.0, 0.0, 3600.0);
+        ORION_GIVE_NOTE = BUILDER
+                .comment("Выдавать записку с кодом каждому игроку при первом входе")
+                .define("giveNoteOnFirstJoin", true);
+        ORION_TERMINAL_REACH = BUILDER
+                .comment("Запас дальности (в блоках) сверх обычной дальности руки для ввода кода")
+                .defineInRange("terminalReachBuffer", 1.0, 0.0, 16.0);
+        ORION_EMERGENCY_LIGHT = BUILDER
+                .comment("Уровень света аварийных светильников (0–15)")
+                .defineInRange("emergencyLightLevel", 12, 0, 15);
+        BUILDER.pop();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private VivaConfig() {}
@@ -149,6 +176,26 @@ public final class VivaConfig {
 
     public static int scoutDroneHoverHeight() {
         return getOr(SCOUT_DRONE_HOVER_HEIGHT, SCOUT_DRONE_HOVER_HEIGHT::getDefault);
+    }
+
+    public static String orionAccessCode() {
+        return SPEC.isLoaded() ? ORION_ACCESS_CODE.get() : ORION_ACCESS_CODE.getDefault();
+    }
+
+    public static double orionAttemptCooldownSeconds() {
+        return SPEC.isLoaded() ? ORION_ATTEMPT_COOLDOWN.get() : ORION_ATTEMPT_COOLDOWN.getDefault();
+    }
+
+    public static boolean orionGiveNote() {
+        return SPEC.isLoaded() ? ORION_GIVE_NOTE.get() : ORION_GIVE_NOTE.getDefault();
+    }
+
+    public static double orionTerminalReach() {
+        return SPEC.isLoaded() ? ORION_TERMINAL_REACH.get() : ORION_TERMINAL_REACH.getDefault();
+    }
+
+    public static int emergencyLightLevel() {
+        return getOr(ORION_EMERGENCY_LIGHT, ORION_EMERGENCY_LIGHT::getDefault);
     }
 
     public static double zhivaDeviceReach() {

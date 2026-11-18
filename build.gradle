@@ -76,6 +76,9 @@ neoForge {
             if (project.hasProperty('vivaQuickPlay')) {
                 programArguments.addAll('--quickPlaySingleplayer', project.property('vivaQuickPlay').toString())
                 systemProperty 'vivacore.devScreenshots', 'true'
+                if (project.hasProperty('vivaDevScreen')) {
+                    systemProperty 'vivacore.devScreen', project.property('vivaDevScreen').toString()
+                }
             }
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id

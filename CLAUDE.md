@@ -34,7 +34,9 @@
 - `./gradlew runClient` — dev-клиент.
 - `./gradlew runClient -PvivaQuickPlay=<мир>` — клиент сам заходит в мир из `run/saves/<мир>` и включает
   `client/DevScreenshots`: 5 скриншотов в `run/screenshots/vivacore-dev-N.png`, потом клиент закрывается.
-  Так агент смотрит модели в игре без ручного управления (картинки читаются инструментом Read). Сцену ставит датапак
+  Так агент смотрит модели в игре без ручного управления (картинки читаются инструментом Read). После 60 тиков хук
+  держит поворот камеры (окно клиента ловит мышь пользователя). `-PvivaDevScreen=code_terminal` — последний кадр
+  с открытым экраном терминала. Сцену ставит датапак
   мира (`run/saves/<мир>/datapacks/...`, функция в теге `minecraft:tick`). Свежий мир: временно `level-name` в
   `run/server.properties` → runServer → stop → перенести папку мира в `run/saves`.
 
@@ -54,8 +56,22 @@
   Модели плагина смотрят в −Z (так же, как сущности в игре — проверено скриншотами), правая сторона модели +X;
   имена костей left/right в моделях могут быть перепутаны — в коде к костям по именам не обращаться.
 - Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое
-  соединение их не принимает, сервер падает. Бери `ZhivaGameTests#player`: ServerPlayer вне мира с «глухим» соединением.
-  `ServerPlayer.moveTo` без соединения падает — используй `setPos`.
+  соединение их не принимает, сервер падает. Бери `gametest/TestPlayers.player(h, rel)`: ServerPlayer вне мира с «глухим»
+  соединением. `ServerPlayer.moveTo` без соединения падает — используй `setPos`.
+- ОРИОН (`orion/`): блоки обломков корабля и лаборатории (`orion/block/OrionBlocks`), дверь с латунным замком
+  (`OrionDoorBlock`: свой BlockSetType «не открывается рукой», редстоун игнорируется), терминал кода (`CodeTerminalBlock`,
+  экран `client/CodeTerminalScreen`, пакеты `orion/net`), флаг мира «программа отменена» (`OrionData`,
+  `Orion.isProgramCancelled(server)`), записка с кодом (attachment `vivacore:orion_note_given`), детали армии
+  (`OrionItems`). Тест 34 (часть) — `orion/OrionGameTests`. Исходники моделей блоков — `art/blocks/`.
+- Формы блоков (хитбоксы) — по моделям, для facing=north, поворот как у blockstate (`FacingShapedBlock.rotateClockwise`).
+  Двухблочные блоки (капсула) — как дверь: половины lower/upper, лут только из нижней.
+- Свечение моделей по маскам агента моделей (`*_glowmask.png`, прозрачный фон):
+  блоки — копии элементов с текстурой маски, на 0.01 px больше, с `"neoforge_data": {"block_light": 15, "sky_light": 15}`
+  и `render_type: cutout` (в 1.21.1 работает: NeoForge парсит neoforge_data у элементов);
+  предметы — `"loader": "neoforge:item_layers"`, слой 1 = маска, `neoforge_data.layers.1` = 15/15.
+  Генератор, которым это делалось в задаче 5, лежал в `run/tmp-task5/make_resources.py` (не в git).
+- Свет блоков в 1.21.1 кешируется в BlockState при регистрации (до загрузки конфига): уровень из конфига — через
+  позиционный `getLightEmission(state, level, pos)` (NeoForge), статический `lightLevel` — значение по умолчанию.
 - Жива (`zhiva/`): состояние — attachment `vivacore:zhiva` (IMPLANTED → REMOVED → REVEALED, copyOnDeath, синхронизация
   только владельцу); логика — `Zhiva`; голос — `ZhivaVoice` (антиспам); помощь — `ZhivaHelp` (здоровье + пустые точки
   входа для рейдов и советов); устройство — `zhiva/device`, пакеты терминала — `zhiva/net`, экран — `client/`.
@@ -86,7 +102,8 @@
   `HomeGameTests#cyrillicCommands`).
 - Перед миксинами в чужие моды (Create, Sable, Aeronautics, Chromeware) — прочитать их код (jar из инстанса)
   и описать в отчёте, куда и почему вмешиваешься.
-- Не менять ничего вне репозитория без прямой просьбы.
+- Не менять ничего вне репозитория без прямой просьбы. Временные файлы — только внутри репозитория, в папках из
+  .gitignore (например `run/tmp-<задача>/`), не в корне диска и не рядом с репозиторием.
 - Push: Батыр разрешил (задача 2) пушить в `main` после того, как build, runServer и runGameTestServer зелёные.
   Если что-то красное — не пушить, а описать в отчёте.
 

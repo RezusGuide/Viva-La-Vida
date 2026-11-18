@@ -69,6 +69,13 @@ public final class VivaRegistries {
                     .sync((holder, to) -> holder == to, ZhivaData.STREAM_CODEC)
                     .build());
 
+    /** Записка с кодом ОРИОНа уже выдана игроку (один раз за всю игру, переживает смерть). */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Boolean>> ORION_NOTE_GIVEN =
+            ATTACHMENTS.register("orion_note_given", () -> AttachmentType.builder(() -> false)
+                    .serialize(com.mojang.serialization.Codec.BOOL)
+                    .copyOnDeath()
+                    .build());
+
     /** Владелец чипа «Жива». */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<ZhivaChipItem.Owner>> CHIP_OWNER =
             DATA_COMPONENTS.register("chip_owner", () -> DataComponentType.<ZhivaChipItem.Owner>builder()
@@ -97,6 +104,8 @@ public final class VivaRegistries {
                     .displayItems((params, out) -> {
                         out.accept(SCOUT_DRONE_EGG.get());
                         out.accept(IMPLANT_DEVICE_ITEM.get());
+                        dev.rezus.vivacore.orion.block.OrionBlocks.items().forEach(i -> out.accept(i.get()));
+                        dev.rezus.vivacore.orion.OrionItems.all().forEach(i -> out.accept(i.get()));
                     })
                     .build());
 
@@ -105,6 +114,8 @@ public final class VivaRegistries {
     }
 
     public static void register(IEventBus modBus) {
+        dev.rezus.vivacore.orion.block.OrionBlocks.init();
+        dev.rezus.vivacore.orion.OrionItems.init();
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         DATA_COMPONENTS.register(modBus);

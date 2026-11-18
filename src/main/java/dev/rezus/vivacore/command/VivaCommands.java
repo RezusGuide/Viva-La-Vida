@@ -25,6 +25,8 @@ public final class VivaCommands {
                 .then(HomeCommands.build(HomeCommands.RU))
                 .then(HomeCommands.build(HomeCommands.EN))
                 .then(ZhivaCommands.build(ZhivaCommands.RU))
-                .then(ZhivaCommands.build(ZhivaCommands.EN)));
+                .then(ZhivaCommands.build(ZhivaCommands.EN))
+                .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.RU))
+                .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.EN)));
     }
 }

@@ -48,30 +48,9 @@ public final class ZhivaGameTests {
 
     private ZhivaGameTests() {}
 
-    private static int playerCounter;
-
-    /**
-     * Тестовый игрок вне мира и без соединения. makeMockServerPlayerInLevel не подходит: игрок попадает в мир,
-     * Create шлёт ему свои пакеты, а фальшивое соединение их не поддерживает — сервер падает.
-     */
+    /** Тестовый игрок вне мира (см. TestPlayers). */
     private static ServerPlayer player(GameTestHelper h) {
-        GameProfile profile = new GameProfile(UUID.randomUUID(), "viva_test_" + (++playerCounter));
-        CommonListenerCookie cookie = CommonListenerCookie.createInitial(profile, false);
-        ServerPlayer p = new ServerPlayer(h.getLevel().getServer(), h.getLevel(), profile, cookie.clientInformation());
-        Connection connection = new Connection(PacketFlow.SERVERBOUND);
-        new EmbeddedChannel(connection);
-        // «глухое» соединение: все пакеты игроку молча выбрасываются
-        p.connection = new ServerGamePacketListenerImpl(h.getLevel().getServer(), connection, p, cookie) {
-            @Override
-            public void send(Packet<?> packet) {
-            }
-
-            @Override
-            public void send(Packet<?> packet, @Nullable PacketSendListener listener) {
-            }
-        };
-        p.setPos(Vec3.atCenterOf(h.absolutePos(new BlockPos(0, 1, 0))));
-        return p;
+        return dev.rezus.vivacore.gametest.TestPlayers.player(h);
     }
 
     private static int countChips(ServerPlayer player) {

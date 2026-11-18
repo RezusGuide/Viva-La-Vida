@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " N",
+    "N ",
+    "I "
+  ],
+  "key": {
+    "N": {
+      "item": "create:brass_nugget"
+    },
+    "I": {
+      "tag": "c:ingots/brass"
+    }
+  },
+  "result": {
+    "id": "vivacore:brass_key",
+    "count": 1
+  }
+}

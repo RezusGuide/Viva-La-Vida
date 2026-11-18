@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "vivacore:block/cable_bundle"
+    },
+    "facing=east": {
+      "model": "vivacore:block/cable_bundle",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "vivacore:block/cable_bundle",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "vivacore:block/cable_bundle",
+      "y": 270
+    }
+  }
+}

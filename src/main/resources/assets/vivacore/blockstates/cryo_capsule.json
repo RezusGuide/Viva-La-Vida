@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,half=lower": {
+      "model": "vivacore:block/cryo_capsule"
+    },
+    "facing=north,half=upper": {
+      "model": "vivacore:block/cryo_capsule_upper"
+    },
+    "facing=east,half=lower": {
+      "model": "vivacore:block/cryo_capsule",
+      "y": 90
+    },
+    "facing=east,half=upper": {
+      "model": "vivacore:block/cryo_capsule_upper",
+      "y": 90
+    },
+    "facing=south,half=lower": {
+      "model": "vivacore:block/cryo_capsule",
+      "y": 180
+    },
+    "facing=south,half=upper": {
+      "model": "vivacore:block/cryo_capsule_upper",
+      "y": 180
+    },
+    "facing=west,half=lower": {
+      "model": "vivacore:block/cryo_capsule",
+      "y": 270
+    },
+    "facing=west,half=upper": {
+      "model": "vivacore:block/cryo_capsule_upper",
+      "y": 270
+    }
+  }
+}

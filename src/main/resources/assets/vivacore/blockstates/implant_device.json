@@ -1,7 +1,19 @@
 {
   "variants": {
-    "": {
+    "facing=north": {
       "model": "vivacore:block/implant_device"
+    },
+    "facing=east": {
+      "model": "vivacore:block/implant_device",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "vivacore:block/implant_device",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "vivacore:block/implant_device",
+      "y": 270
     }
   }
 }

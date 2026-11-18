@@ -1,0 +1,9 @@
+{
+  "parent": "vivacore:block/code_terminal",
+  "textures": {
+    "0": "vivacore:block/code_terminal_open",
+    "particle": "vivacore:block/code_terminal_open",
+    "glow": "vivacore:block/code_terminal_open_glowmask"
+  },
+  "render_type": "minecraft:cutout"
+}

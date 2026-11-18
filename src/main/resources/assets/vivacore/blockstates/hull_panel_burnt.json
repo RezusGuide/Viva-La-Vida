@@ -1,0 +1,78 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "vivacore:block/hull_panel_burnt"
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "y": 90
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "y": 180
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "y": 270
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 90
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 90,
+        "y": 270
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 180
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 180,
+        "y": 90
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 180,
+        "y": 180
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 180,
+        "y": 270
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 270
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 270,
+        "y": 90
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 270,
+        "y": 180
+      },
+      {
+        "model": "vivacore:block/hull_panel_burnt",
+        "x": 270,
+        "y": 270
+      }
+    ]
+  }
+}

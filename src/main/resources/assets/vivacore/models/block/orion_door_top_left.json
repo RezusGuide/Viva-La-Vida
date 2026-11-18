@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/door_top_left",
+  "textures": {
+    "bottom": "vivacore:block/orion_door_bottom",
+    "top": "vivacore:block/orion_door_top"
+  },
+  "render_type": "minecraft:cutout"
+}

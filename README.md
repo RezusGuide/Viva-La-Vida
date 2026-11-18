@@ -25,6 +25,9 @@
 
 Create: Chromeware — необязательный: Viva Core читает его рефлексией, для сборки jar Chromeware не нужен.
 
+ОРИОН (оператор): `/viva орион статус | сбросить` (EN: `/viva orion status | reset`). Код терминала — конфиг
+`orion.accessCode`; дверь ОРИОНа открывается только латунным ключом.
+
 Армия: дрон-разведчик `vivacore:scout_drone` (GeckoLib; яйцо призыва во вкладке Viva Core, сам не спавнится).
 Проверка моделей в игре без ручного управления: `./gradlew runClient -PvivaQuickPlay=<мир из run/saves>`.
 

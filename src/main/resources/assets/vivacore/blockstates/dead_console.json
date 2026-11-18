@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "vivacore:block/dead_console"
+    },
+    "facing=east": {
+      "model": "vivacore:block/dead_console",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "vivacore:block/dead_console",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "vivacore:block/dead_console",
+      "y": 270
+    }
+  }
+}
