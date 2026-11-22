@@ -39,12 +39,10 @@ public final class Army {
         if (server.getTickCount() % 20 != 0) return;
         var players = server.getPlayerList().getPlayers();
         Alarm.decay(server, Alarm.occupied(players), 1.0);
-        for (ServerPlayer p : players) {
-            Waves.tickPlayer(p, 20);
-        }
+        Waves.tickAll(server, players, 20);
     }
 
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        Waves.forget(event.getEntity().getUUID());
+        // таймеры волн — на участок; уход игрока учтёт следующий tickAll
     }
 }

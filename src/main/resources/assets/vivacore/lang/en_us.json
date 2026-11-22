@@ -124,5 +124,7 @@
   "vivacore.army.command.on": "[TEXT: ORION army enabled]",
   "vivacore.army.command.off": "[TEXT: ORION army disabled]",
   "vivacore.army.command.alarm_set": "[TEXT: alarm of sector %1$s: %2$s]",
-  "vivacore.army.command.status": "[TEXT: army on %1$s, program cancelled %2$s; sector %3$s alarm %4$s; machines %5$s of %6$s, heavy near %7$s; MSPT %8$s]"
+  "vivacore.army.command.status": "[TEXT: army on %1$s, program cancelled %2$s; sector %3$s alarm %4$s; machines %5$s of %6$s, heavy near %7$s; MSPT %8$s]",
+  "entity.vivacore.orion_projectile": "[TEXT: ORION projectile]",
+  "gamerule.vivaArmyGriefing": "[TEXT: ORION army griefing]"
 }

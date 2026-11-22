@@ -1,0 +1,27 @@
+{
+  "values": [
+    "minecraft:obsidian",
+    "minecraft:crying_obsidian",
+    "minecraft:reinforced_deepslate",
+    "minecraft:bedrock",
+    "minecraft:netherite_block",
+    "minecraft:ancient_debris",
+    "minecraft:respawn_anchor",
+    "minecraft:iron_block",
+    "minecraft:iron_door",
+    "minecraft:iron_trapdoor",
+    "minecraft:end_portal_frame",
+    "vivacore:orion_wall",
+    "vivacore:orion_wall_hazard",
+    "vivacore:orion_floor",
+    "vivacore:orion_door",
+    "vivacore:hull_panel",
+    "vivacore:hull_panel_burnt",
+    "vivacore:hull_panel_dented",
+    "vivacore:hull_vent",
+    {
+      "id": "#c:obsidians",
+      "required": false
+    }
+  ]
+}

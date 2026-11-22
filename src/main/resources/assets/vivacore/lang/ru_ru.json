@@ -124,5 +124,7 @@
   "vivacore.army.command.on": "[ТЕКСТ: армия ОРИОНа включена]",
   "vivacore.army.command.off": "[ТЕКСТ: армия ОРИОНа выключена]",
   "vivacore.army.command.alarm_set": "[ТЕКСТ: тревога участка %1$s: %2$s]",
-  "vivacore.army.command.status": "[ТЕКСТ: армия: вкл %1$s, программа отменена %2$s; участок %3$s, тревога %4$s; машин %5$s из %6$s, тяжёлых рядом %7$s; MSPT %8$s]"
+  "vivacore.army.command.status": "[ТЕКСТ: армия: вкл %1$s, программа отменена %2$s; участок %3$s, тревога %4$s; машин %5$s из %6$s, тяжёлых рядом %7$s; MSPT %8$s]",
+  "entity.vivacore.orion_projectile": "[ТЕКСТ: снаряд ОРИОНа]",
+  "gamerule.vivaArmyGriefing": "[ТЕКСТ: разрушение армией ОРИОНа]"
 }

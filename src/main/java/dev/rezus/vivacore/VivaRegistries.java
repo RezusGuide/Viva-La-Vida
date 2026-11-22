@@ -111,6 +111,7 @@ public final class VivaRegistries {
         ATTACHMENTS.register(modBus);
         ENTITIES.register(modBus);
         BLOCK_ENTITIES.register(modBus);
+        dev.rezus.vivacore.army.ArmyParticles.register(modBus);
         TABS.register(modBus);
         modBus.addListener(dev.rezus.vivacore.army.ArmyEntities::onAttributes);
     }

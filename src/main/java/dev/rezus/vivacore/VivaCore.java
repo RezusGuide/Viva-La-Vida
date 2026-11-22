@@ -27,6 +27,7 @@ public final class VivaCore {
         container.registerConfig(ModConfig.Type.SERVER, VivaConfig.SPEC);
         container.registerConfig(ModConfig.Type.CLIENT, VivaClientConfig.SPEC);
 
+        dev.rezus.vivacore.army.ArmyRules.init();
         VivaRegistries.register(modBus);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             dev.rezus.vivacore.client.VivaClient.init(modBus);

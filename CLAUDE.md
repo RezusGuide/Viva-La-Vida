@@ -60,6 +60,23 @@
   `Army` (армия активна = `army.enabled` и программа ОРИОНа не отменена). Дроп — `data/vivacore/loot_table/entities/`.
   Модели — `assets/vivacore/{geo,animations,textures}/entity/<id>*`, исходники — `art/models/<id>.bbmodel`.
   Цели машин добавляются в конструкторе `OrionMachine`, а не в `registerGoals` (тот вызывается до присвоения полей).
+- Оружие (задача 7): `MachineCombat` (очереди, лазер снайпера, ракеты, аура роя), снаряд `OrionProjectile`
+  (BULLET / PIERCING / SHELL / ROCKET, спрайты агента моделей), частицы `ArmyParticles` (вспышка, искры, обломки).
+  Позиции стволов — данные в `MachineType.muzzles()` (pivot костей muzzle* из .geo.json; на сервере моделей нет).
+  Числа — `army.<id>.*` (+ ракеты, щит, лазер, аура). Свои своих не бьют (`Factions.sameSide`).
+- Правило игры `vivaArmyGriefing` (`ArmyRules`): вкл — взрывы ванильные (`ExplosionInteraction.TNT`, проходят через
+  `ExplosionEvent.Detonate` — приват OPAC их фильтрует); выкл — танк и ракеты вертолёта стреляют сквозными (тег
+  `vivacore:pierceable`, стоп на `vivacore:blast_proof`), и такие машины выбирают цели за лёгкой стеной.
+- Трассировка снарядов — через `level.clip`, а не `BlockGetter.traverseBlocks`: `clip` подменяет Sable, и снаряд
+  видит блоки кораблей. Точка попадания в блок корабля приходит в координатах участка корабля (plot), не мира.
+- Три стороны (`Factions`): списки целей — `army.targets.orion` / `army.targets.infected`. Мобы Spore — по пространству
+  имён `spore`. Захват заражением: машину убил моб Spore или заражённая → с шансом `army.infection.convertChance`
+  встаёт заражённая версия (`MachineType.infectedVariant`).
+- Волны — на участок (`Waves.tickAll`/`tickSector`), место — по тегу `vivacore:wave_spawn_ground`; под землёй
+  (карта высот выше игрока) — только `fitsCave()` машины на его высоте ±8.
+- Цели Mob оценивает только в тики с чётным `(tickCount + id)` — периодические проверки в `canUse` делать с учётом id.
+- GameTest с машинами — каждый в своей пачке (batch): машины воюют между собой, а тесты одной пачки стоят рядом.
+  Тест Sable (`SableHitGameTests`, необязательный) работает, только если Sable лежит в `run/mods`.
   Модели плагина смотрят в −Z (так же, как сущности в игре — проверено скриншотами), правая сторона модели +X;
   имена костей left/right в моделях могут быть перепутаны — в коде к костям по именам не обращаться.
 - Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое

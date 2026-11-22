@@ -29,6 +29,14 @@ public final class ArmyEntities {
                     EntityType.Builder.<ScoutDrone>of((t, l) -> new ScoutDrone(t, l, MachineType.SCOUT_DRONE), MobCategory.MONSTER),
                     MachineType.SCOUT_DRONE));
 
+    /** Снаряды машин (пуля, сквозная, снаряд танка, ракета). */
+    public static final DeferredHolder<EntityType<?>, EntityType<OrionProjectile>> PROJECTILE =
+            VivaRegistries.ENTITIES.register("orion_projectile", () -> EntityType.Builder.<OrionProjectile>of(OrionProjectile::new, MobCategory.MISC)
+                    .sized(0.25f, 0.25f)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(VivaCore.MOD_ID + ":orion_projectile"));
+
     static {
         TYPES.put(MachineType.SCOUT_DRONE, SCOUT_DRONE);
         for (MachineType mt : MachineType.values()) {

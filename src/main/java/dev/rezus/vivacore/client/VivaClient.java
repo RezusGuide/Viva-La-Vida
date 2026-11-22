@@ -12,6 +12,7 @@ public final class VivaClient {
 
     public static void init(IEventBus modBus) {
         modBus.addListener(VivaClient::onRegisterRenderers);
+        modBus.addListener(ArmyParticleProviders::register);
         DevScreenshots.initIfEnabled();
     }
 
@@ -23,6 +24,7 @@ public final class VivaClient {
                 event.registerEntityRenderer(ArmyEntities.type(mt), ctx -> new MachineRenderer(ctx, mt));
             }
         }
+        event.registerEntityRenderer(ArmyEntities.PROJECTILE.get(), OrionProjectileRenderer::new);
         event.registerBlockEntityRenderer(VivaRegistries.ORION_DOOR_BE.get(), OrionDoorRenderer::create);
     }
 }

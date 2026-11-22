@@ -62,6 +62,12 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
     /** Машину усыпила отмена программы ОРИОНа (а не NoAI из команды) — разбудить можно только такую. */
     private boolean sleptByOrion;
     private int noPlayerTicks;
+    /** Оружие (задача 7). */
+    final MachineCombat combat = new MachineCombat(this);
+    /** Цель лазера снайпера (id сущности, −1 — нет) — синхронизируется клиенту, рисует луч. */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> LASER_TARGET =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(OrionMachine.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.INT);
 
     public OrionMachine(EntityType<? extends OrionMachine> type, Level level, MachineType machine) {
         super(type, level);
@@ -98,12 +104,82 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
             goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 24f));
             return;
         }
-        goalSelector.addGoal(1, new ApproachPlayerGoal(this));
+        goalSelector.addGoal(1, new ApproachTargetGoal(this));
         goalSelector.addGoal(2, new PatrolGoal(this));
         goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 16f));
         goalSelector.addGoal(4, new RandomLookAroundGoal(this));
-        // целей атаки (targetSelector) нет — оружие появится в задаче 7
+        if (machine.weapon() != MachineType.Weapon.NONE) {
+            targetSelector.addGoal(1, new FactionTargetGoal(this));
+        }
     }
+
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(LASER_TARGET, -1);
+    }
+
+    public int laserTarget() {
+        return entityData.get(LASER_TARGET);
+    }
+
+    void setLaserTarget(int id) {
+        if (entityData.get(LASER_TARGET) != id) entityData.set(LASER_TARGET, id);
+    }
+
+    public MachineCombat combat() {
+        return combat;
+    }
+
+    /** Щит тяжёлого штурмовика: урон спереди (сектор shieldHalfAngle) умножается на frontDamageMultiplier. */
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        if (machine.shielded() && isHitFromFront(source)) {
+            amount *= (float) VivaConfig.heavyFrontMultiplier();
+        }
+        return super.hurt(source, amount);
+    }
+
+    public boolean isHitFromFront(net.minecraft.world.damagesource.DamageSource source) {
+        Vec3 from = source.getSourcePosition();
+        if (from == null) return false;
+        Vec3 to = from.subtract(position()).multiply(1, 0, 1);
+        if (to.lengthSqr() < 1e-6) return false;
+        float yaw = yBodyRot * Mth.DEG_TO_RAD;
+        Vec3 forward = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
+        double cos = forward.dot(to.normalize());
+        return cos >= Math.cos(Math.toRadians(VivaConfig.heavyShieldAngle()));
+    }
+
+    /**
+     * Смерть: обломки и искры; если убийца — моб Spore или заражённая машина, с шансом army.infection.convertChance
+     * на месте машины ОРИОНа встаёт её заражённая версия (дрон, лёгкая и тяжёлая пехота, мех).
+     */
+    @Override
+    public void die(net.minecraft.world.damagesource.DamageSource source) {
+        super.die(source);
+        if (!(level() instanceof ServerLevel server)) return;
+        server.sendParticles(ArmyParticles.DEBRIS.get(), getX(), getY(0.5), getZ(), 14,
+                getBbWidth() * 0.4, getBbHeight() * 0.3, getBbWidth() * 0.4, 0.15);
+        server.sendParticles(ArmyParticles.SPARK.get(), getX(), getY(0.5), getZ(), 10,
+                getBbWidth() * 0.3, getBbHeight() * 0.3, getBbWidth() * 0.3, 0.1);
+        MachineType variant = machine.infectedVariant();
+        net.minecraft.world.entity.Entity killer = source.getEntity();
+        if (variant != null && !machine.infected && (Factions.isSporeMob(killer) || Factions.isInfected(killer))
+                && getRandom().nextDouble() < VivaConfig.armyInfectionChance()) {
+            OrionMachine infected = ArmyEntities.type(variant).create(server);
+            if (infected != null) {
+                infected.moveTo(getX(), getY(), getZ(), getYRot(), getXRot());
+                infected.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), MobSpawnType.CONVERSION, null);
+                server.addFreshEntity(infected);
+                lastConversion = infected;
+            }
+        }
+    }
+
+    /** Для тестов: заражённая машина, вставшая на месте этой. */
+    @Nullable
+    public OrionMachine lastConversion;
 
     @Override
     @Nullable
@@ -142,6 +218,11 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
         }
         if (!configApplied) applyConfig(false);
         if (home == null) home = blockPosition();
+        if (!isNoAi() && isAlive()) {
+            combat.tick();
+        } else {
+            setLaserTarget(-1);
+        }
         if (tickCount % 20 == 0) {
             updateSleep();
             tickHeavyDespawn();
@@ -216,14 +297,6 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
         return home;
     }
 
-    /** Ближайший игрок, которого машина замечает (не творческий режим, не наблюдатель, в дальности обнаружения). */
-    @Nullable
-    public Player noticedPlayer() {
-        double range = VivaConfig.machineDetectRange(machine);
-        Player p = level().getNearestPlayer(getX(), getY(), getZ(), range, EntitySelector.NO_CREATIVE_OR_SPECTATOR);
-        return p != null && getSensing().hasLineOfSight(p) ? p : null;
-    }
-
     // ---------------------------------------------------------------- GeckoLib
 
     @Override
@@ -239,6 +312,15 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
             double moved = m.position().distanceToSqr(m.xo, m.yo, m.zo);
             return state.setAndContinue(moved > 1.0e-4 ? m.animMove : m.animIdle);
         }));
+        // выстрелы: сервер вызывает triggerAnim("attack", "shoot" | "rocket"), GeckoLib передаёт клиентам
+        AnimationController<OrionMachine> attack = new AnimationController<>(this, "attack", 0, state -> PlayState.STOP);
+        if (machine.shootAnim() != null) {
+            attack.triggerableAnim(machine.shootAnim(), RawAnimation.begin().thenPlay(machine.anim(machine.shootAnim())));
+        }
+        if (machine.weapon() == MachineType.Weapon.HELICOPTER) {
+            attack.triggerableAnim("rocket", RawAnimation.begin().thenPlay(machine.anim("rocket")));
+        }
+        controllers.add(attack);
     }
 
     @Override
@@ -284,34 +366,23 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
         }
     }
 
-    /** Заметил игрока — повернуться к нему и подойти на дистанцию «огня». Не атакует. */
-    static final class ApproachPlayerGoal extends Goal {
+    /** Есть цель — повернуться к ней и держаться на дистанции «огня» (подходить, если дальше). */
+    static final class ApproachTargetGoal extends Goal {
         private final OrionMachine m;
-        @Nullable
-        private Player player;
         private int repath;
 
-        ApproachPlayerGoal(OrionMachine m) {
+        ApproachTargetGoal(OrionMachine m) {
             this.m = m;
             setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
-            if (m.tickCount % 10 != 0) return false;
-            player = m.noticedPlayer();
-            return player != null;
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return player != null && player.isAlive() && !player.isCreative() && !player.isSpectator()
-                    && m.distanceTo(player) <= VivaConfig.machineDetectRange(m.machine) * 1.25;
+            return m.getTarget() != null && m.getTarget().isAlive();
         }
 
         @Override
         public void stop() {
-            player = null;
             m.getNavigation().stop();
         }
 
@@ -322,20 +393,66 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
 
         @Override
         public void tick() {
-            if (player == null) return;
-            m.getLookControl().setLookAt(player, 30f, 30f);
+            var target = m.getTarget();
+            if (target == null) return;
+            m.getLookControl().setLookAt(target, 30f, 30f);
+            if (m.machine.movement == MachineType.Movement.GROUND || m.machine.movement == MachineType.Movement.FLYING) {
+                m.setYBodyRot(m.yHeadRot);
+            }
             double fire = VivaConfig.machineFireRange(m.machine);
-            double dist = m.distanceTo(player);
-            if (dist > fire) {
+            double dist = m.distanceTo(target);
+            if (m.machine.weapon() == MachineType.Weapon.SWARM) {
+                // рой — облако: летит прямо на цель без поиска пути (путь до тела цели часто не строится)
+                m.getNavigation().stop();
+                m.getMoveControl().setWantedPosition(target.getX(), target.getY(0.5), target.getZ(), 1.0);
+                return;
+            }
+            if (dist > fire || !m.combat.canEngage(target)) {
                 if (--repath <= 0) {
                     repath = 10;
-                    double y = m.machine.movement == MachineType.Movement.FLYING
-                            ? player.getY() + VivaConfig.armyPatrolHeight() : player.getY();
-                    m.getNavigation().moveTo(player.getX(), y, player.getZ(), 1.0);
+                    // летающие держатся выше цели; рой — прямо на цель (наниты бьют при касании)
+                    boolean above = m.machine.movement == MachineType.Movement.FLYING && m.machine.weapon() != MachineType.Weapon.SWARM;
+                    double y = above ? target.getY() + VivaConfig.armyPatrolHeight() : target.getY(0.3);
+                    m.getNavigation().moveTo(target.getX(), y, target.getZ(), 1.0);
                 }
             } else {
                 m.getNavigation().stop();
             }
+        }
+    }
+
+    /** Выбор цели по спискам сторон (army.targets.*): ближайшая видимая в дальности обнаружения. Раз в 10 тиков. */
+    static final class FactionTargetGoal extends Goal {
+        private final OrionMachine m;
+
+        FactionTargetGoal(OrionMachine m) {
+            this.m = m;
+            setFlags(EnumSet.of(Flag.TARGET));
+        }
+
+        @Override
+        public boolean canUse() {
+            // цели Mob оценивает только в тики с чётным (tickCount + id) — проверка с учётом id, иначе у машин
+            // с нечётным id выбор цели не срабатывал бы никогда
+            if ((m.tickCount + m.getId()) % 10 != 0) return false;
+            var current = m.getTarget();
+            if (current != null && current.isAlive() && Factions.isTarget(m, current)
+                    && m.distanceTo(current) <= VivaConfig.machineDetectRange(m.machine) * 1.25) {
+                return false;
+            }
+            double range = VivaConfig.machineDetectRange(m.machine);
+            net.minecraft.world.entity.LivingEntity best = null;
+            double bestDist = Double.MAX_VALUE;
+            for (var e : m.level().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    m.getBoundingBox().inflate(range), e -> Factions.isTarget(m, e))) {
+                double d = m.distanceToSqr(e);
+                if (d < bestDist && d <= range * range && (m.getSensing().hasLineOfSight(e) || m.combat.canEngage(e))) {
+                    best = e;
+                    bestDist = d;
+                }
+            }
+            m.setTarget(best);
+            return false;
         }
     }
 }

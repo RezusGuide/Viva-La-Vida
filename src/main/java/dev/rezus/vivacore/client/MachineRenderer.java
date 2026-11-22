@@ -31,6 +31,70 @@ public class MachineRenderer extends GeoEntityRenderer<OrionMachine> {
     }
 
     /**
+     * Сдвиг модели вверх (мех, страж ядра — геометрия ниже ног) и лазер снайпера: красный луч от ствола к цели,
+     * пока снайпер целится (laserTarget синхронизируется с сервера).
+     */
+    @Override
+    public void render(OrionMachine entity, float entityYaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        float offset = entity.machine().modelOffsetPx() / 16f;
+        pose.pushPose();
+        pose.translate(0, offset, 0);
+        super.render(entity, entityYaw, partialTick, pose, buffers, light);
+        pose.popPose();
+        int laser = entity.laserTarget();
+        if (laser >= 0) {
+            net.minecraft.world.entity.Entity target = entity.level().getEntity(laser);
+            if (target != null) renderLaser(entity, target, partialTick, pose, buffers);
+        }
+    }
+
+    /** Пока снайпер целится, рисуем его всегда: луч может пересекать экран, даже если сам снайпер за кадром. */
+    @Override
+    public boolean shouldRender(OrionMachine entity, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        return entity.laserTarget() >= 0 || super.shouldRender(entity, frustum, x, y, z);
+    }
+
+    /** Отрисовка модели без сдвига и лазера (для моделек роя). */
+    protected void renderUnshifted(OrionMachine entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        super.render(entity, yaw, partialTick, pose, buffers, light);
+    }
+
+    /**
+     * Лазер снайпера: лента от ствола к цели, всегда повёрнутая к камере (иначе вдоль луча она видна ребром),
+     * и яркая точка-излучатель у ствола — её видно и тому, в кого целятся (он смотрит на луч в торец).
+     */
+    private static void renderLaser(OrionMachine shooter, net.minecraft.world.entity.Entity target, float partialTick,
+                                    PoseStack pose, MultiBufferSource buffers) {
+        net.minecraft.world.phys.Vec3 origin = shooter.getPosition(partialTick);
+        net.minecraft.world.phys.Vec3 muzzle = shooter.combat().muzzleAt(partialTick).subtract(origin);
+        net.minecraft.world.phys.Vec3 end = target.getPosition(partialTick).add(0, target.getBbHeight() * 0.6, 0).subtract(origin);
+        net.minecraft.world.phys.Vec3 camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera()
+                .getPosition().subtract(origin);
+        var vc = buffers.getBuffer(net.minecraft.client.renderer.RenderType.lightning());
+        var m = pose.last().pose();
+        net.minecraft.world.phys.Vec3 beam = end.subtract(muzzle);
+        net.minecraft.world.phys.Vec3 side = beam.cross(camera.subtract(muzzle));
+        if (side.lengthSqr() < 1e-8) side = new net.minecraft.world.phys.Vec3(0, 1, 0);
+        side = side.normalize().scale(0.035);
+        quad(vc, m, muzzle.subtract(side), muzzle.add(side), end.add(side), end.subtract(side), 255, 30, 30, 220);
+        // точка-излучатель у ствола: квадрат 0.18, повёрнутый к камере
+        net.minecraft.world.phys.Vec3 toCam = camera.subtract(muzzle).normalize();
+        net.minecraft.world.phys.Vec3 up = Math.abs(toCam.y) > 0.95 ? new net.minecraft.world.phys.Vec3(1, 0, 0) : new net.minecraft.world.phys.Vec3(0, 1, 0);
+        net.minecraft.world.phys.Vec3 r = toCam.cross(up).normalize().scale(0.09);
+        net.minecraft.world.phys.Vec3 u = r.cross(toCam).normalize().scale(0.09);
+        quad(vc, m, muzzle.subtract(r).subtract(u), muzzle.add(r).subtract(u), muzzle.add(r).add(u), muzzle.subtract(r).add(u), 255, 60, 60, 255);
+    }
+
+    private static void quad(com.mojang.blaze3d.vertex.VertexConsumer vc, org.joml.Matrix4f m,
+                             net.minecraft.world.phys.Vec3 a, net.minecraft.world.phys.Vec3 b, net.minecraft.world.phys.Vec3 c,
+                             net.minecraft.world.phys.Vec3 d, int r, int g, int bl, int alpha) {
+        vc.addVertex(m, (float) a.x, (float) a.y, (float) a.z).setColor(r, g, bl, alpha);
+        vc.addVertex(m, (float) b.x, (float) b.y, (float) b.z).setColor(r, g, bl, alpha);
+        vc.addVertex(m, (float) c.x, (float) c.y, (float) c.z).setColor(r, g, bl, alpha);
+        vc.addVertex(m, (float) d.x, (float) d.y, (float) d.z).setColor(r, g, bl, alpha);
+    }
+
+    /**
      * Рой «Туманность»: на сервере одна сущность, клиент рисует вокруг неё N моделек swarm_unit
      * (N — клиентский конфиг army.swarmUnits). Каждая моделька кружит по своей орбите внутри хитбокса роя
      * и чуть шире; орбиты зависят от id сущности, поэтому у разных роёв облако разное.
@@ -43,6 +107,10 @@ public class MachineRenderer extends GeoEntityRenderer<OrionMachine> {
 
         @Override
         public void render(OrionMachine entity, float entityYaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+            renderCloud(entity, entityYaw, partialTick, pose, buffers, light);
+        }
+
+        private void renderCloud(OrionMachine entity, float entityYaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
             int n = VivaClientConfig.swarmUnits();
             float time = (entity.tickCount + partialTick) / 20f;
             long seed = entity.getId() * 341873128712L;
@@ -54,9 +122,13 @@ public class MachineRenderer extends GeoEntityRenderer<OrionMachine> {
                 float y = 0.2f + (float) b * 1.3f + Mth.sin(time * 2f + i) * 0.15f;
                 pose.pushPose();
                 pose.translate(Mth.cos(angle) * radius, y, Mth.sin(angle) * radius);
-                super.render(entity, entityYaw - angle * Mth.RAD_TO_DEG, partialTick, pose, buffers, light);
+                renderUnit(entity, entityYaw - angle * Mth.RAD_TO_DEG, partialTick, pose, buffers, light);
                 pose.popPose();
             }
+        }
+
+        private void renderUnit(OrionMachine entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+            super.renderUnshifted(entity, yaw, partialTick, pose, buffers, light);
         }
 
         private static double hash(long seed, int i, int salt) {

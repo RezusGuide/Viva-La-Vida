@@ -22,7 +22,7 @@ public enum MachineType {
     MECH_WALKER_INFECTED("mech_walker_infected", Movement.GROUND, true, true, 2.2f, 3.0f, 0x8A9099, 0xA8494A, "walk", "idle", "death", 44, 140, 0.16, 14, 16, 32),
     TANK("tank", Movement.GROUND, true, false, 2.6f, 2.0f, 0x2B2E35, 0x8A9099, "move", "idle", "death", 40, 160, 0.15, 18, 24, 40),
     HELICOPTER("helicopter", Movement.FLYING, true, false, 2.4f, 1.6f, 0x3A3E47, 0xD8302A, "fly", "hover", "death", 50, 80, 0.5, 8, 24, 48),
-    SWARM_UNIT("swarm_unit", Movement.FLYING, false, false, 1.5f, 1.5f, 0x111214, 0x45D16B, "fly", "fly", "death", 10, 30, 0.45, 0, 6, 24),
+    SWARM_UNIT("swarm_unit", Movement.FLYING, false, false, 1.5f, 1.5f, 0x111214, 0x45D16B, "fly", "fly", "death", 10, 30, 0.45, 0, 0.5, 24),
     CORE_GUARDIAN("core_guardian", Movement.STATIC, false, false, 3.0f, 4.2f, 0xD8302A, 0xF2C230, "walk", "idle", "death", 60, 400, 0.0, 20, 0, 32);
 
     public enum Movement { GROUND, FLYING, STATIC }
@@ -62,6 +62,86 @@ public enum MachineType {
         this.defaultArmor = armor;
         this.defaultFireRange = fireRange;
         this.defaultDetectRange = detectRange;
+    }
+
+    /** Оружие машины (задача 7). Числа — конфиг army.&lt;id&gt;.*. */
+    public enum Weapon { NONE, RIFLE, CANNON, SNIPER, HELICOPTER, MECH, TANK, SWARM }
+
+    public Weapon weapon() {
+        return switch (this) {
+            case INFANTRY_LIGHT, INFANTRY_LIGHT_INFECTED -> Weapon.RIFLE;
+            case INFANTRY_HEAVY, INFANTRY_HEAVY_INFECTED -> Weapon.CANNON;
+            case SNIPER -> Weapon.SNIPER;
+            case HELICOPTER -> Weapon.HELICOPTER;
+            case MECH_WALKER, MECH_WALKER_INFECTED -> Weapon.MECH;
+            case TANK -> Weapon.TANK;
+            case SWARM_UNIT -> Weapon.SWARM;
+            default -> Weapon.NONE; // дроны — разведчики, страж ядра — фазы в задаче 8
+        };
+    }
+
+    /** Щит спереди (тяжёлый штурмовик): урон в лоб снижен. */
+    public boolean shielded() {
+        return this == INFANTRY_HEAVY || this == INFANTRY_HEAVY_INFECTED;
+    }
+
+    /**
+     * Стволы в координатах модели (px, модель смотрит в −Z, +X — правая сторона модели) — pivot костей muzzle*
+     * из .geo.json агента моделей. На сервере моделей GeckoLib нет, поэтому позиции — данные здесь.
+     * У вертолёта: [0] — пулемёт, [1], [2] — ракетные блоки.
+     */
+    public float[][] muzzles() {
+        return switch (this) {
+            case INFANTRY_LIGHT, INFANTRY_LIGHT_INFECTED -> new float[][] {{-4.2f, 14f, -9.8f}};
+            case INFANTRY_HEAVY, INFANTRY_HEAVY_INFECTED -> new float[][] {{-12f, 16f, -8f}};
+            case SNIPER -> new float[][] {{-4.2f, 14f, -22.1f}};
+            case HELICOPTER -> new float[][] {{0f, 3.1f, -19.6f}, {-9f, 8.5f, -7.7f}, {9f, 8.5f, -7.7f}};
+            case MECH_WALKER, MECH_WALKER_INFECTED -> new float[][] {{-15.7f, 34.4f, -22f}, {15.7f, 34.4f, -22f}};
+            case TANK -> new float[][] {{0f, 18.8f, -30f}};
+            default -> new float[][] {{0f, height * 8f, 0f}};
+        };
+    }
+
+    /**
+     * Сдвиг модели вверх при отрисовке, px: у меха и стража ядра геометрия уходит ниже ног (до −7 / −7.5 px) —
+     * без сдвига ступни проваливаются в землю. Позиции стволов на сервере сдвигаются так же.
+     */
+    public float modelOffsetPx() {
+        return switch (this) {
+            case MECH_WALKER, MECH_WALKER_INFECTED -> 7f;
+            case CORE_GUARDIAN -> 7.5f;
+            default -> 0f;
+        };
+    }
+
+    /** Имя анимации выстрела (без префикса) или null. */
+    @Nullable
+    public String shootAnim() {
+        return switch (weapon()) {
+            case RIFLE, CANNON, SNIPER, HELICOPTER, TANK -> "shoot";
+            case MECH -> "attack";
+            default -> null;
+        };
+    }
+
+    /** Заражённая версия, в которую машина превращается, если её убило заражение; null — версии нет (только дроп). */
+    @Nullable
+    public MachineType infectedVariant() {
+        return switch (this) {
+            case SCOUT_DRONE -> SCOUT_DRONE_INFECTED;
+            case INFANTRY_LIGHT -> INFANTRY_LIGHT_INFECTED;
+            case INFANTRY_HEAVY -> INFANTRY_HEAVY_INFECTED;
+            case MECH_WALKER -> MECH_WALKER_INFECTED;
+            default -> null;
+        };
+    }
+
+    /** Помещается в пещеру (волна под землёй): дроны, рой, пехота. */
+    public boolean fitsCave() {
+        return switch (this) {
+            case SCOUT_DRONE, SWARM_UNIT, INFANTRY_LIGHT, INFANTRY_HEAVY, SNIPER -> true;
+            default -> false;
+        };
     }
 
     /** Полное имя анимации GeckoLib: animation.&lt;id&gt;.&lt;name&gt;. */

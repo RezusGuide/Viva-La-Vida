@@ -32,6 +32,8 @@ Create: Chromeware — необязательный: Viva Core читает ег
 `helicopter`, `swarm_unit`, `core_guardian` и заражённые версии), яйца во вкладке Viva Core, естественного спавна нет.
 Тревога участков и волны подкрепления; выключено, пока `army.enabled = false`.
 Оператор: `/viva армия вкл | выкл | тревога <0–4> | статус` (EN: `/viva army on | off | alarm <0–4> | status`).
+Машины вооружены (кроме дронов и стража ядра); разрушение блоков армией — игровое правило `/gamerule vivaArmyGriefing`
+(по умолчанию true; при false — сквозные снаряды вместо взрывных).
 Проверка моделей в игре без ручного управления: `./gradlew runClient -PvivaQuickPlay=<мир из run/saves>`.
 
 Баланс имплантов Chromeware: [docs/chromeware-balance.md](docs/chromeware-balance.md).

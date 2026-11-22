@@ -87,13 +87,53 @@ public final class VivaConfig {
     @SuppressWarnings("unchecked")
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>>[] ARMY_WAVES = new ModConfigSpec.ConfigValue[5];
 
-    /** Числа одной машины: army.<id>.* */
+    /** Числа одной машины: army.<id>.* (оружие — задача 7: урон, перезарядка, очередь, разброс, скорость снаряда). */
     public record Machine(ModConfigSpec.DoubleValue health, ModConfigSpec.DoubleValue speed,
                           ModConfigSpec.DoubleValue armor, ModConfigSpec.DoubleValue fireRange,
-                          ModConfigSpec.DoubleValue detectRange) {}
+                          ModConfigSpec.DoubleValue detectRange,
+                          ModConfigSpec.DoubleValue damage, ModConfigSpec.IntValue cooldown,
+                          ModConfigSpec.IntValue burst, ModConfigSpec.IntValue burstGap,
+                          ModConfigSpec.DoubleValue spread, ModConfigSpec.DoubleValue projectileSpeed) {}
+
+    // особые параметры оружия
+    public static final ModConfigSpec.DoubleValue HELI_ROCKET_DAMAGE;
+    public static final ModConfigSpec.IntValue HELI_ROCKET_COOLDOWN;
+    public static final ModConfigSpec.DoubleValue HELI_ROCKET_POWER;
+    public static final ModConfigSpec.DoubleValue HELI_ROCKET_SPEED;
+    public static final ModConfigSpec.DoubleValue TANK_SHELL_POWER;
+    public static final ModConfigSpec.DoubleValue HEAVY_FRONT_MULTIPLIER;
+    public static final ModConfigSpec.DoubleValue HEAVY_SHIELD_ANGLE;
+    public static final ModConfigSpec.IntValue SNIPER_LASER_TICKS;
+    public static final ModConfigSpec.DoubleValue SWARM_AURA_RADIUS;
+    // разрушение, цели, заражение
+    public static final ModConfigSpec.IntValue ARMY_PIERCE_BLOCKS;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ARMY_TARGETS_ORION;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ARMY_TARGETS_INFECTED;
+    public static final ModConfigSpec.DoubleValue ARMY_INFECTION_CHANCE;
 
     private static final java.util.Map<dev.rezus.vivacore.army.MachineType, Machine> MACHINES =
             new java.util.EnumMap<>(dev.rezus.vivacore.army.MachineType.class);
+    private static final ModConfigSpec.DoubleValue[] heliRocket = new ModConfigSpec.DoubleValue[3];
+    private static final ModConfigSpec.IntValue[] heliRocketCd = new ModConfigSpec.IntValue[1];
+    private static final ModConfigSpec.DoubleValue[] tankPower = new ModConfigSpec.DoubleValue[1];
+    private static final ModConfigSpec.DoubleValue[] heavyShield = new ModConfigSpec.DoubleValue[2];
+    private static final ModConfigSpec.IntValue[] sniperLaser = new ModConfigSpec.IntValue[1];
+    private static final ModConfigSpec.DoubleValue[] swarmRadius = new ModConfigSpec.DoubleValue[1];
+
+    /** Значения оружия по умолчанию: урон, перезарядка, очередь, пауза, разброс, скорость. Баланс — в конфиге. */
+    private static double weaponDefault(dev.rezus.vivacore.army.MachineType t, int i) {
+        double[] v = switch (t.weapon()) {
+            case RIFLE -> new double[] {3, 40, 3, 4, 3.0, 3.0};
+            case CANNON -> new double[] {7, 50, 1, 1, 2.0, 2.5};
+            case SNIPER -> new double[] {14, 100, 1, 1, 0.3, 5.0};
+            case HELICOPTER -> new double[] {3, 30, 5, 2, 4.0, 3.5};
+            case MECH -> new double[] {6, 40, 2, 5, 2.0, 3.0};
+            case TANK -> new double[] {16, 100, 1, 1, 1.0, 2.2};
+            case SWARM -> new double[] {2, 10, 1, 1, 0.0, 1.0};
+            case NONE -> new double[] {0, 100, 1, 1, 0.0, 1.0};
+        };
+        return v[i];
+    }
 
     static {
         BUILDER.comment("Армия ОРИОНа").push("army");
@@ -165,6 +205,31 @@ public final class VivaConfig {
                 .defineInRange("heavyDespawnSeconds", 120, 10, 3600);
         BUILDER.pop();
 
+        BUILDER.comment("Правило vivaArmyGriefing (игровое правило, по умолчанию true): при выключенном вместо взрывных — сквозные снаряды")
+                .push("griefing");
+        ARMY_PIERCE_BLOCKS = BUILDER
+                .comment("Сколько лёгких блоков (тег vivacore:pierceable) пробивает сквозной снаряд")
+                .defineInRange("pierceBlocks", 2, 0, 16);
+        BUILDER.pop();
+
+        BUILDER.comment("Кто с кем воюет: «@player» — игроки (не творческий, не наблюдатель), «@orion» — машины ОРИОНа,",
+                "«@infected» — заражённые машины, «#тег» — тег сущностей, «мод:*» — все сущности мода, «мод:id» — одна сущность").push("targets");
+        ARMY_TARGETS_ORION = BUILDER
+                .comment("Цели машин ОРИОНа")
+                .defineListAllowEmpty("orion", java.util.List.of("@player", "#minecraft:raiders", "spore:*", "@infected"),
+                        () -> "@player", o -> o instanceof String);
+        ARMY_TARGETS_INFECTED = BUILDER
+                .comment("Цели заражённых машин (мобов Spore не трогают)")
+                .defineListAllowEmpty("infected", java.util.List.of("@player", "@orion", "#minecraft:raiders"),
+                        () -> "@player", o -> o instanceof String);
+        BUILDER.pop();
+
+        BUILDER.comment("Заражение захватывает армию (тест 26)").push("infection");
+        ARMY_INFECTION_CHANCE = BUILDER
+                .comment("Шанс, что машина ОРИОНа, убитая мобом Spore или заражённой машиной, встанет заражённой")
+                .defineInRange("convertChance", 0.5, 0.0, 1.0);
+        BUILDER.pop();
+
         for (dev.rezus.vivacore.army.MachineType t : dev.rezus.vivacore.army.MachineType.values()) {
             BUILDER.push(t.id);
             MACHINES.put(t, new Machine(
@@ -172,9 +237,45 @@ public final class VivaConfig {
                     BUILDER.comment("Скорость (наземные — movement_speed, летающие — flying_speed)").defineInRange("speed", t.defaultSpeed, 0.0, 4.0),
                     BUILDER.comment("Броня (атрибут armor)").defineInRange("armor", t.defaultArmor, 0.0, 30.0),
                     BUILDER.comment("Дистанция «огня»: на неё машина подходит к игроку, блоки").defineInRange("fireRange", t.defaultFireRange, 0.0, 128.0),
-                    BUILDER.comment("Дальность обнаружения игрока, блоки").defineInRange("detectRange", t.defaultDetectRange, 0.0, 128.0)));
+                    BUILDER.comment("Дальность обнаружения игрока, блоки").defineInRange("detectRange", t.defaultDetectRange, 0.0, 128.0),
+                    BUILDER.comment("Урон выстрела (у роя — урон касания раз в 10 тиков)").defineInRange("damage", weaponDefault(t, 0), 0.0, 1000.0),
+                    BUILDER.comment("Перезарядка между очередями, тики").defineInRange("cooldownTicks", (int) weaponDefault(t, 1), 1, 1200),
+                    BUILDER.comment("Выстрелов в очереди").defineInRange("burst", (int) weaponDefault(t, 2), 1, 50),
+                    BUILDER.comment("Пауза между выстрелами очереди, тики").defineInRange("burstGapTicks", (int) weaponDefault(t, 3), 1, 100),
+                    BUILDER.comment("Разброс, градусы").defineInRange("spreadDegrees", weaponDefault(t, 4), 0.0, 45.0),
+                    BUILDER.comment("Скорость снаряда, блоки за тик").defineInRange("projectileSpeed", weaponDefault(t, 5), 0.1, 10.0)));
+            if (t == dev.rezus.vivacore.army.MachineType.HELICOPTER) {
+                BUILDER.comment("Ракеты (взрывные; при выключенном vivaArmyGriefing — сквозные)").push("rockets");
+                heliRocket[0] = BUILDER.defineInRange("damage", 10.0, 0.0, 1000.0);
+                heliRocketCd[0] = BUILDER.comment("тики").defineInRange("cooldownTicks", 120, 1, 2400);
+                heliRocket[1] = BUILDER.comment("сила взрыва (TNT = 4)").defineInRange("explosionPower", 2.0, 0.0, 8.0);
+                heliRocket[2] = BUILDER.defineInRange("speed", 1.6, 0.1, 10.0);
+                BUILDER.pop();
+            }
+            if (t == dev.rezus.vivacore.army.MachineType.TANK) {
+                tankPower[0] = BUILDER.comment("Сила взрыва снаряда (TNT = 4)").defineInRange("explosionPower", 3.0, 0.0, 8.0);
+            }
+            if (t == dev.rezus.vivacore.army.MachineType.INFANTRY_HEAVY) {
+                heavyShield[0] = BUILDER.comment("Щит: множитель урона спереди (со спины — полный)").defineInRange("frontDamageMultiplier", 0.3, 0.0, 1.0);
+                heavyShield[1] = BUILDER.comment("Щит: полуширина сектора «спереди», градусы").defineInRange("shieldHalfAngle", 60.0, 0.0, 180.0);
+            }
+            if (t == dev.rezus.vivacore.army.MachineType.SNIPER) {
+                sniperLaser[0] = BUILDER.comment("За сколько тиков до выстрела виден красный луч на цель").defineInRange("laserTicks", 30, 1, 200);
+            }
+            if (t == dev.rezus.vivacore.army.MachineType.SWARM_UNIT) {
+                swarmRadius[0] = BUILDER.comment("Насколько дальше хитбокса роя бьют наниты, блоки").defineInRange("auraRadius", 0.5, 0.0, 8.0);
+            }
             BUILDER.pop();
         }
+        HELI_ROCKET_DAMAGE = heliRocket[0];
+        HELI_ROCKET_POWER = heliRocket[1];
+        HELI_ROCKET_SPEED = heliRocket[2];
+        HELI_ROCKET_COOLDOWN = heliRocketCd[0];
+        TANK_SHELL_POWER = tankPower[0];
+        HEAVY_FRONT_MULTIPLIER = heavyShield[0];
+        HEAVY_SHIELD_ANGLE = heavyShield[1];
+        SNIPER_LASER_TICKS = sniperLaser[0];
+        SWARM_AURA_RADIUS = swarmRadius[0];
         BUILDER.pop();
     }
 
@@ -295,6 +396,28 @@ public final class VivaConfig {
     public static double machineArmor(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).armor()); }
     public static double machineFireRange(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).fireRange()); }
     public static double machineDetectRange(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).detectRange()); }
+    public static double machineDamage(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).damage()); }
+    public static int machineCooldown(dev.rezus.vivacore.army.MachineType t) { return i(MACHINES.get(t).cooldown()); }
+    public static int machineBurst(dev.rezus.vivacore.army.MachineType t) { return i(MACHINES.get(t).burst()); }
+    public static int machineBurstGap(dev.rezus.vivacore.army.MachineType t) { return i(MACHINES.get(t).burstGap()); }
+    public static double machineSpread(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).spread()); }
+    public static double machineProjectileSpeed(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).projectileSpeed()); }
+    public static double heliRocketDamage() { return d(HELI_ROCKET_DAMAGE); }
+    public static int heliRocketCooldown() { return i(HELI_ROCKET_COOLDOWN); }
+    public static double heliRocketPower() { return d(HELI_ROCKET_POWER); }
+    public static double heliRocketSpeed() { return d(HELI_ROCKET_SPEED); }
+    public static double tankShellPower() { return d(TANK_SHELL_POWER); }
+    public static double heavyFrontMultiplier() { return d(HEAVY_FRONT_MULTIPLIER); }
+    public static double heavyShieldAngle() { return d(HEAVY_SHIELD_ANGLE); }
+    public static int sniperLaserTicks() { return i(SNIPER_LASER_TICKS); }
+    public static double swarmAuraRadius() { return d(SWARM_AURA_RADIUS); }
+    public static int armyPierceBlocks() { return i(ARMY_PIERCE_BLOCKS); }
+    public static double armyInfectionChance() { return d(ARMY_INFECTION_CHANCE); }
+
+    public static java.util.List<? extends String> armyTargets(boolean infected) {
+        var v = infected ? ARMY_TARGETS_INFECTED : ARMY_TARGETS_ORION;
+        return SPEC.isLoaded() ? v.get() : v.getDefault();
+    }
 
     public static String orionAccessCode() {
         return SPEC.isLoaded() ? ORION_ACCESS_CODE.get() : ORION_ACCESS_CODE.getDefault();

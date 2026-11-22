@@ -61,7 +61,7 @@ public final class ArmyGameTests {
     public static Collection<TestFunction> machinesLiveAndDrop() {
         List<TestFunction> tests = new ArrayList<>();
         for (MachineType t : MachineType.values()) {
-            tests.add(new TestFunction("army_machines", "machine_" + t.id, VivaCore.MOD_ID + ":" + AREA,
+            tests.add(new TestFunction("army_machine_" + t.id, "machine_" + t.id, VivaCore.MOD_ID + ":" + AREA,
                     LIVE_TICKS + 120, 0, true, h -> machineLives(h, t)));
         }
         return tests;
@@ -171,27 +171,34 @@ public final class ArmyGameTests {
         Orion.reset(server);
         ServerPlayer p = TestPlayers.player(h, new BlockPos(6, 1, 7));
         BlockPos at = p.blockPosition();
-        Waves.forget(p.getUUID());
+        Waves.reset();
 
         // ниже порога: сколько ни стой — волны нет
         Alarm.set(h.getLevel(), at, 0);
         for (int s = 0; s < VivaConfig.armyWaveDelay() * 2; s++) {
-            h.assertTrue(Waves.tickPlayer(p, 20) == Waves.Event.NONE, "без тревоги волны нет");
+            h.assertTrue(Waves.tickSector(List.of(p), 20) == Waves.Event.NONE, "без тревоги волны нет");
         }
-        // порог: предупреждение за warningSeconds, волна на delaySeconds
-        Waves.forget(p.getUUID());
+        // порог: предупреждение за warningSeconds, волна на delaySeconds; двое игроков в участке — одна волна
+        Waves.reset();
         Alarm.set(h.getLevel(), at, VivaConfig.armyWaveThreshold());
-        int warnedAt = -1, spawnedAt = -1;
+        ServerPlayer p2 = TestPlayers.player(h, new BlockPos(7, 1, 8));
+        h.assertTrue(Alarm.sector(h.getLevel(), p2.blockPosition()).equals(Alarm.sector(h.getLevel(), at)), "оба игрока в одном участке");
+        int warnedAt = -1, spawnedAt = -1, waves = 0;
         for (int s = 1; s <= VivaConfig.armyWaveDelay(); s++) {
-            Waves.Event e = Waves.tickPlayer(p, 20);
+            Waves.Event e = Waves.tickSector(List.of(p, p2), 20);
             if (e == Waves.Event.WARNED) warnedAt = s;
-            if (e == Waves.Event.SPAWNED || e == Waves.Event.BLOCKED) spawnedAt = s;
+            if (e == Waves.Event.SPAWNED || e == Waves.Event.BLOCKED) {
+                spawnedAt = s;
+                waves++;
+            }
         }
+        h.assertTrue(waves == 1, "одна волна на участок, а не на игрока: " + waves);
         h.assertTrue(warnedAt == VivaConfig.armyWaveDelay() - VivaConfig.armyWaveWarning(), "предупреждение на секунде " + warnedAt);
         h.assertTrue(spawnedAt == VivaConfig.armyWaveDelay(), "волна на секунде " + spawnedAt);
         AABB around = p.getBoundingBox().inflate(40);
         int wave1 = h.getLevel().getEntitiesOfClass(OrionMachine.class, around).size();
-        h.assertTrue(wave1 > 0, "волна пришла: " + wave1);
+        int compositionSize = Waves.composition(VivaConfig.armyWaveThreshold(), h.getLevel().random).size();
+        h.assertTrue(wave1 > 0 && wave1 <= compositionSize, "одна волна пришла (машин " + wave1 + ", в составе " + compositionSize + ")");
 
         // лимит тяжёлых: три волны уровня 4 (танк + мех) — тяжёлых не больше maxHeavyPerGroup
         for (int i = 0; i < 3; i++) Waves.spawnWave(p, 4);
@@ -215,7 +222,7 @@ public final class ArmyGameTests {
             m.discard();
         }
         Alarm.set(h.getLevel(), at, 0);
-        Waves.forget(p.getUUID());
+        Waves.reset();
         VivaConfig.ARMY_WAVE_DISTANCE.set(oldDistance);
         VivaConfig.ARMY_ENABLED.set(was);
         h.succeed();
@@ -235,9 +242,9 @@ public final class ArmyGameTests {
         Alarm.set(h.getLevel(), p.blockPosition(), 3);
         h.assertTrue(!Army.isActive(server), "армия неактивна после отмены");
         h.assertTrue(!Alarm.raise(h.getLevel(), p.blockPosition(), 1), "тревога не растёт");
-        Waves.forget(p.getUUID());
+        Waves.reset();
         for (int s = 0; s < VivaConfig.armyWaveDelay() + 5; s++) {
-            h.assertTrue(Waves.tickPlayer(p, 20) == Waves.Event.NONE, "волн нет");
+            h.assertTrue(Waves.tickSector(List.of(p), 20) == Waves.Event.NONE, "волн нет");
         }
         h.startSequence()
                 .thenExecuteAfter(45, () -> {
