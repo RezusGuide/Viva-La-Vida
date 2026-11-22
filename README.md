@@ -29,11 +29,22 @@ Create: Chromeware — необязательный: Viva Core читает ег
 `orion.accessCode`; дверь ОРИОНа открывается только латунным ключом.
 
 Армия ОРИОНа: 13 машин (`vivacore:scout_drone`, `infantry_light`, `infantry_heavy`, `sniper`, `mech_walker`, `tank`,
-`helicopter`, `swarm_unit`, `core_guardian` и заражённые версии), яйца во вкладке Viva Core, естественного спавна нет.
+`helicopter`, `swarm_unit`, `core_guardian` и заражённые версии), яйца во вкладке Viva Core; естественный спавн — только
+в зоне влияния лаборатории (см. ниже).
 Тревога участков и волны подкрепления; выключено, пока `army.enabled = false`.
 Оператор: `/viva армия вкл | выкл | тревога <0–4> | статус` (EN: `/viva army on | off | alarm <0–4> | status`).
 Машины вооружены (кроме дронов и стража ядра); разрушение блоков армией — игровое правило `/gamerule vivaArmyGriefing`
 (по умолчанию true; при false — сквозные снаряды вместо взрывных).
+Три постройки (черновики `data/vivacore/structure/{crash_habitation,orion_lab,nexus_site}.nbt`, можно заменить своими —
+код смотрит только на имя файла и метки `structure_block` в режиме DATA: `vivacore:ground`, `vivacore:core`,
+`vivacore:player_spawn`, `vivacore:guardian`, `vivacore:guard`). Жилой отсек ставится у спавна при первом запуске мира,
+лаборатория и Нексус — в 10 000 блоков по углу из сида (в разные стороны, на суше), когда их область впервые загрузилась.
+Оператор: `/viva постройки статус | поставить <lab|nexus|crash> [здесь] | тп <lab|nexus|crash>`,
+`/viva нексус уничтожить | восстановить`, `/viva стадия [1–5]` (EN: `/viva structures status | place | tp`,
+`/viva nexus destroy | restore`, `/viva stage [n]`). Стадия — временно, до AStages.
+Зоны влияния (`zones.*`): вокруг ядер круги 9 500 блоков, доля мобов стороны 100% − 10% за 1000 блоков; до 4-й стадии —
+только охрана 30% в 1000 блоков от ядер. Защита построек (`protection.*`): в коробке постройки нельзя ломать, ставить,
+лить, взрывать, двигать и ломать контрапциями Create; в лабораторию — без эндер-жемчуга и хоруса.
 Проверка моделей в игре без ручного управления: `./gradlew runClient -PvivaQuickPlay=<мир из run/saves>`.
 
 Баланс имплантов Chromeware: [docs/chromeware-balance.md](docs/chromeware-balance.md).

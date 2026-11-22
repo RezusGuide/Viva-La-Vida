@@ -21,6 +21,10 @@ public final class VivaCommands {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (!net.neoforged.fml.loading.FMLEnvironment.production) {
+            // dev: замер нагрузки зон (тест 32) — в обычной сборке команды нет
+            dispatcher.register(Commands.literal("viva").then(dev.rezus.vivacore.zones.DevBench.build()));
+        }
         dispatcher.register(Commands.literal("viva")
                 .then(HomeCommands.build(HomeCommands.RU))
                 .then(HomeCommands.build(HomeCommands.EN))
@@ -29,6 +33,12 @@ public final class VivaCommands {
                 .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.RU))
                 .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.EN))
                 .then(dev.rezus.vivacore.army.ArmyCommands.build(dev.rezus.vivacore.army.ArmyCommands.RU))
-                .then(dev.rezus.vivacore.army.ArmyCommands.build(dev.rezus.vivacore.army.ArmyCommands.EN)));
+                .then(dev.rezus.vivacore.army.ArmyCommands.build(dev.rezus.vivacore.army.ArmyCommands.EN))
+                .then(dev.rezus.vivacore.structures.SiteCommands.build(dev.rezus.vivacore.structures.SiteCommands.RU))
+                .then(dev.rezus.vivacore.structures.SiteCommands.build(dev.rezus.vivacore.structures.SiteCommands.EN))
+                .then(dev.rezus.vivacore.structures.SiteCommands.buildNexus(dev.rezus.vivacore.structures.SiteCommands.RU))
+                .then(dev.rezus.vivacore.structures.SiteCommands.buildNexus(dev.rezus.vivacore.structures.SiteCommands.EN))
+                .then(dev.rezus.vivacore.stage.StageCommands.build(dev.rezus.vivacore.stage.StageCommands.RU))
+                .then(dev.rezus.vivacore.stage.StageCommands.build(dev.rezus.vivacore.stage.StageCommands.EN)));
     }
 }

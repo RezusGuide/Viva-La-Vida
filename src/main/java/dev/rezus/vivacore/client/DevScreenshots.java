@@ -23,12 +23,23 @@ import net.neoforged.neoforge.common.NeoForge;
 public final class DevScreenshots {
     private DevScreenshots() {}
 
-    private static final int[] SHOTS = {100, 115, 130, 200, 260};
+    private static final int[] SHOTS = parseShots(System.getProperty("vivacore.devShots"), new int[] {100, 115, 130, 200, 260});
     private static final int[] PROFILE_SHOTS = {100, 200, 300, 320, 340};
     private static final int LOCK_FROM = 60;
     private static int ticksInWorld;
     private static int shotIndex;
     private static float lockedYaw, lockedPitch;
+    private static net.minecraft.world.phys.Vec3 lastPos = net.minecraft.world.phys.Vec3.ZERO;
+
+    /** -PvivaDevShots=100,180,260,340,420 — свои тики кадров (сцена с телепортами между кадрами). */
+    private static int[] parseShots(String prop, int[] def) {
+        if (prop == null || prop.isBlank()) return def;
+        try {
+            return java.util.Arrays.stream(prop.split(",")).mapToInt(v -> Integer.parseInt(v.trim())).toArray();
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
 
     public static void initIfEnabled() {
         if (Boolean.getBoolean("vivacore.devScreenshots")) {
@@ -88,7 +99,10 @@ public final class DevScreenshots {
         ticksInWorld++;
         devAction(mc);
         // окно клиента может поймать мышь на рабочем столе — держим поворот камеры, заданный сценой (датапаком)
-        if (ticksInWorld == LOCK_FROM) {
+        // телепорт сценой (прыжок больше 4 блоков) — новый ракурс: перехватить поворот заново
+        boolean jumped = mc.player.position().distanceToSqr(lastPos) > 16;
+        lastPos = mc.player.position();
+        if (ticksInWorld == LOCK_FROM || (ticksInWorld > LOCK_FROM && jumped)) {
             lockedYaw = mc.player.getYRot();
             lockedPitch = mc.player.getXRot();
         } else if (ticksInWorld > LOCK_FROM) {

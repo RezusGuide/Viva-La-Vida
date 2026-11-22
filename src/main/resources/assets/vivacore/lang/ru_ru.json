@@ -126,5 +126,15 @@
   "vivacore.army.command.alarm_set": "[ТЕКСТ: тревога участка %1$s: %2$s]",
   "vivacore.army.command.status": "[ТЕКСТ: армия: вкл %1$s, программа отменена %2$s; участок %3$s, тревога %4$s; машин %5$s из %6$s, тяжёлых рядом %7$s; MSPT %8$s]",
   "entity.vivacore.orion_projectile": "[ТЕКСТ: снаряд ОРИОНа]",
-  "gamerule.vivaArmyGriefing": "[ТЕКСТ: разрушение армией ОРИОНа]"
+  "gamerule.vivaArmyGriefing": "[ТЕКСТ: разрушение армией ОРИОНа]",
+  "vivacore.stage.command.current": "[ТЕКСТ: стадия сервера: %s]",
+  "vivacore.stage.command.set": "[ТЕКСТ: стадия сервера теперь %s]",
+  "vivacore.structures.command.status_header": "[ТЕКСТ: постройки: угол %1$s°, стадия %2$s, Нексус уничтожен %3$s]",
+  "vivacore.structures.command.status_line": "[ТЕКСТ: %1$s: %2$s, поставлена %3$s]",
+  "vivacore.structures.command.already": "[ТЕКСТ: постройка %s уже стоит]",
+  "vivacore.structures.command.failed": "[ТЕКСТ: постройку %s поставить не удалось — смотри лог]",
+  "vivacore.structures.command.placed": "[ТЕКСТ: постройка %1$s поставлена, центр %2$s]",
+  "vivacore.structures.command.teleported": "[ТЕКСТ: ты у постройки %1$s: %2$s]",
+  "vivacore.structures.command.nexus_destroyed": "[ТЕКСТ: Нексус отмечен уничтоженным — зона заражения выключена]",
+  "vivacore.structures.command.nexus_restored": "[ТЕКСТ: флаг «Нексус уничтожен» снят]"
 }

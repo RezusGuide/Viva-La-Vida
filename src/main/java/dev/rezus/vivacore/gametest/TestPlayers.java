@@ -45,6 +45,26 @@ public final class TestPlayers {
         return p;
     }
 
+    /** Игрок вне GameTest (dev-замеры): то же «глухое» соединение, позиция — pos. В мир не добавляется. */
+    public static ServerPlayer detached(net.minecraft.server.level.ServerLevel level, Vec3 pos, String name) {
+        GameProfile profile = new GameProfile(UUID.randomUUID(), name);
+        CommonListenerCookie cookie = CommonListenerCookie.createInitial(profile, false);
+        ServerPlayer p = new ServerPlayer(level.getServer(), level, profile, cookie.clientInformation());
+        Connection connection = new Connection(PacketFlow.SERVERBOUND);
+        new EmbeddedChannel(connection);
+        p.connection = new ServerGamePacketListenerImpl(level.getServer(), connection, p, cookie) {
+            @Override
+            public void send(Packet<?> packet) {
+            }
+
+            @Override
+            public void send(Packet<?> packet, @Nullable PacketSendListener listener) {
+            }
+        };
+        p.setPos(pos);
+        return p;
+    }
+
     public static ServerPlayer player(GameTestHelper h) {
         return player(h, new BlockPos(0, 1, 0));
     }

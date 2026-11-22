@@ -48,5 +48,28 @@ public final class VivaCore {
         });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent e) ->
                 dev.rezus.vivacore.orion.Orion.forget(e.getEntity().getUUID()));
+        // постройки, стадия, зоны влияния, защита (задача 8; тесты 31, 32, 34)
+        modBus.addListener((net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent e) ->
+                e.enqueueWork(dev.rezus.vivacore.protection.CreateProtection::register));
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.structures.Structures::onServerStarted);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) ->
+                dev.rezus.vivacore.structures.Structures.onServerStopped());
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.structures.Structures::onServerTick);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.zones.InfluenceZones::onServerTick);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.zones.InfluenceZones::onPositionCheck);
+        if (!FMLEnvironment.production) {
+            NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.zones.DevBench::onTickPre);
+            NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.zones.DevBench::onTickPost);
+        }
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onBreak);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onPlace);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onToolModify);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onTrample);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onUseItem);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onExplosion);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onLivingDestroyBlock);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onMobGriefing);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onEnderPearl);
+        NeoForge.EVENT_BUS.addListener(dev.rezus.vivacore.protection.SiteProtection::onChorus);
     }
 }

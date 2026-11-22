@@ -126,5 +126,15 @@
   "vivacore.army.command.alarm_set": "[TEXT: alarm of sector %1$s: %2$s]",
   "vivacore.army.command.status": "[TEXT: army on %1$s, program cancelled %2$s; sector %3$s alarm %4$s; machines %5$s of %6$s, heavy near %7$s; MSPT %8$s]",
   "entity.vivacore.orion_projectile": "[TEXT: ORION projectile]",
-  "gamerule.vivaArmyGriefing": "[TEXT: ORION army griefing]"
+  "gamerule.vivaArmyGriefing": "[TEXT: ORION army griefing]",
+  "vivacore.stage.command.current": "[TEXT: server stage: %s]",
+  "vivacore.stage.command.set": "[TEXT: server stage is now %s]",
+  "vivacore.structures.command.status_header": "[TEXT: structures: angle %1$s°, stage %2$s, nexus destroyed %3$s]",
+  "vivacore.structures.command.status_line": "[TEXT: %1$s: %2$s, placed %3$s]",
+  "vivacore.structures.command.already": "[TEXT: structure %s is already placed]",
+  "vivacore.structures.command.failed": "[TEXT: could not place structure %s — see the log]",
+  "vivacore.structures.command.placed": "[TEXT: structure %1$s placed, centre %2$s]",
+  "vivacore.structures.command.teleported": "[TEXT: you are at structure %1$s: %2$s]",
+  "vivacore.structures.command.nexus_destroyed": "[TEXT: nexus marked destroyed — infection zone off]",
+  "vivacore.structures.command.nexus_restored": "[TEXT: nexus destroyed flag cleared]"
 }

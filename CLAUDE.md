@@ -50,6 +50,9 @@
 - GameTest: в main-исходниках, `@GameTestHolder("vivacore")`, шаблоны `vivacore:empty`
   (`data/vivacore/structure/empty.nbt`, 1×1×1 воздух) и `vivacore:wheels` (12×8×14 воздух).
   Вода для колёс в тестах — пузырьковые столбы над песком душ (Create считает их потоком).
+- Тесты 31 (`structures/SiteGameTests`), 32 (`zones/ZoneGameTests`), 34 (`protection/ProtectionGameTests`):
+  каждый тест — в своей пачке, общее состояние построек/стадии/флагов сбрасывают в конце (`Structures.resetForTests`).
+  Постройки в тестах ставятся далеко (x 30 000+), чтобы не задеть площадки других тестов.
 - Тесты по «09 Тесты»: 35 — дома (`home/HomeGameTests`), 17 — лимит водяных колёс (`wheels/WheelGameTests`),
   36 — твист с имплантом Живы и 33 (любая из 7 оптик Kiroshi) — `zhiva/ZhivaGameTests`, 24 (первый шаг армии:
   дрон-разведчик) — `army/ArmyGameTests`. Тест 7 (баланс Chromeware) — разведка в `docs/chromeware-balance.md`.
@@ -95,6 +98,38 @@
   и `render_type: cutout` (в 1.21.1 работает: NeoForge парсит neoforge_data у элементов);
   предметы — `"loader": "neoforge:item_layers"`, слой 1 = маска, `neoforge_data.layers.1` = 15/15.
   Генератор, которым это делалось в задаче 5, лежал в `run/tmp-task5/make_resources.py` (не в git).
+- Постройки (`structures/`, тест 31): `SiteType` (crash / lab / nexus → имя .nbt), `SitePlanner` (угол из сида,
+  противоположные точки, поиск суши по шуму биомов генератора — без генерации чанков), `Structures` (размещение по
+  меткам, кеш для зон и защиты, `position(server, type)` для квестов), `SiteData` (SavedData: план, коробки, ядра,
+  «Нексус уничтожен»), команды `SiteCommands`. Шаблоны-черновики собирает `StructureGenerator`
+  (`/viva structures build <crash|lab|nexus>` — только в dev, пишет в `src/main/resources/data/vivacore/structure/`;
+  из консоли с pipe — команда приходит без мира, генератор берёт overworld). Код размещения знает только имя файла
+  и метки (structure_block, режим DATA, поле metadata): `vivacore:ground` (уровень земли), `core`, `player_spawn`,
+  `guardian`, `guard`. Метки в мир не ставятся (BlockIgnoreProcessor). После шаблона — засыпка пустот снизу
+  (`foundationDepth`) и расчистка нависающего грунта сверху (`clearAboveDepth`).
+- Когда ставятся: отсек — `ServerStartedEvent` (чанки спавна загружены), спавн мира → метка player_spawn, spawnRadius 0
+  (иначе спавн уезжает на крышу: `adjustSpawnLocation` берёт верх карты высот — метка стоит под дырой в крыше).
+  Лаборатория и Нексус — раз в секунду `hasChunk` чанка центра; загрузился → ставим (флаг в SavedData). В GameTestServer
+  авторазмещения нет. «Поставить здесь» — без поворота (предсказуемые ракурсы dev-скриншотов).
+- Стадия сервера (`stage/ServerStage`, временно до AStages): все проверки — только `ServerStage.get(server)`.
+- Зоны влияния (`zones/`, тест 32): `InfluenceZones` (доли, решение на `MobSpawnEvent.PositionCheck` — только NATURAL,
+  MONSTER, не машины и не Spore; две дистанции до ядер из кеша), `LabZone` (машина вместо пропущенного моба — 1:1,
+  состав `zones.labComposition`; не работает, если армия неактивна: `army.enabled = false` по умолчанию или программа
+  отменена — тогда вся зона лаборатории выключена, обычные мобы идут как обычно), `InfectionZone` (точка входа для
+  Spore, пока заглушка — заражённые машины; после «Нексус уничтожен» зоны нет). Число машин для лимита — кеш на 5 с.
+- Защита (`protection/`, тест 34): `SiteProtection` — события NeoForge (ломание, установка, инструменты, вытаптывание,
+  ведро — через `RightClickItem` + луч, событий ведра в 21.1 нет; взрыв `Detonate`; `LivingDestroyBlockEvent`;
+  `EntityMobGriefingEvent`; жемчуг и хорус `EntityTeleportEvent`). Create: сдвиг — API
+  `BlockMovementChecks.registerMovementAllowedCheck` (`CreateProtection`); разрушение — миксины (событие у Create не
+  шлётся: `BlockHelper.destroyBlock` зовёт `destroyBlockAs` с player = null, без BreakEvent). Ящики припасов — тег
+  `vivacore:protection_exempt`. Оператор (уровень `protection.opPermissionLevel`) в творческом — может всё.
+- `runGameTestServer` и `runServer` работают с одной папкой `run/world`: после GameTest в `run/world/data` не осталось
+  `vivacore_*.dat` (SavedData мода), следующий runServer начал мир «с нуля» (отсек поставлен ещё раз). Для dev-мира
+  это неважно, но не держи в `run/world` ничего ценного.
+- Dev-замер нагрузки зон: `/viva devbench <прогрев> <замер>` (только dev) — 5 ботов (`TestPlayers.detached`,
+  добавлены в мир: вокруг них грузятся чанки и идёт естественный спавн), стадия 4, армия вкл, ночь; итоги в лог
+  «Viva Core bench: …», сервер останавливается сам. `-PvivaDevShots=100,180,…` — свои тики кадров dev-скриншотов;
+  при телепорте сценой (прыжок > 4 блоков) хук перехватывает поворот камеры заново.
 - Свет блоков в 1.21.1 кешируется в BlockState при регистрации (до загрузки конфига): уровень из конфига — через
   позиционный `getLightEmission(state, level, pos)` (NeoForge), статический `lightLevel` — значение по умолчанию.
 - Жива (`zhiva/`): состояние — attachment `vivacore:zhiva` (IMPLANTED → REMOVED → REVEALED, copyOnDeath, синхронизация
@@ -107,6 +142,11 @@
   `Implant#installed(Player)`, attachment `chromeware:face` (только в тесте).
 - Конфиги NeoForge 21.1.264 (и наш, и чужие) лежат в `config/` (в dev — `run/config/`), не в `world/serverconfig/`.
 - Миксины: `src/main/resources/vivacore.mixins.json`, классы в `dev.rezus.vivacore.mixin`:
+  - `CreateBlockHelperMixin` (Create `BlockHelper.destroyBlockAs`, static): HEAD cancellable → в коробке постройки
+    блок не ломается (дрели, пилы, катки, деплоер).
+  - `CreateBreakingMovementMixin` (`BlockBreakingMovementBehaviour.canBreak`): RETURN → false в коробке — контрапция
+    упирается, как в бедрок. `CreateBreakingBlockEntityMixin` (`BlockBreakingKineticBlockEntity.canBreak(BlockState,
+    float)`, позиция — `getBreakingPos()`): стоячие дрель/пила не начинают ломать.
   - `WaterWheelBlockEntityMixin` (Create `WaterWheelBlockEntity`): `getGeneratedSpeed` HEAD cancellable → 0 у лишнего
     колеса; `setFlowScoreAndUpdate` INVOKE перед `updateGeneratedRotation` → проверка лимита; `write` TAIL /
     `read` RETURN → NBT `vivacore:limited`, `vivacore:order`.

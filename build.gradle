@@ -79,6 +79,10 @@ neoForge {
                 if (project.hasProperty('vivaDevAction')) {
                     systemProperty 'vivacore.devAction', project.property('vivaDevAction').toString()
                 }
+                if (project.hasProperty('vivaDevShots')) {
+                    // тики кадров через запятую, напр. 100,180,260,340,420 (по умолчанию 100,115,130,200,260)
+                    systemProperty 'vivacore.devShots', project.property('vivaDevShots').toString()
+                }
                 if (project.hasProperty('vivaDevScreen')) {
                     systemProperty 'vivacore.devScreen', project.property('vivaDevScreen').toString()
                 }

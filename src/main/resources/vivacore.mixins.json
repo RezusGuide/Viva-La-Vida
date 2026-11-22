@@ -4,6 +4,9 @@
   "package": "dev.rezus.vivacore.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CreateBlockHelperMixin",
+    "CreateBreakingBlockEntityMixin",
+    "CreateBreakingMovementMixin",
     "GeneratingKineticBlockEntityMixin",
     "WaterWheelBlockEntityMixin"
   ],

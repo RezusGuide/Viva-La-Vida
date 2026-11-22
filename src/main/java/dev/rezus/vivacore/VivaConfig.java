@@ -314,6 +314,82 @@ public final class VivaConfig {
         BUILDER.pop();
     }
 
+    // --- structures, zones, protection: постройки, зоны влияния, защита (заметка «17 Три стороны конфликта», тесты 31, 32, 34) ---
+    public static final ModConfigSpec.BooleanValue STRUCTURES_AUTO_PLACE;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_DISTANCE;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_ANGLE_SHIFT;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_ANGLE_STEP;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_DISTANCE_SHIFT;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_DISTANCE_STEP;
+    public static final ModConfigSpec.IntValue STRUCTURES_LAND_RADIUS;
+    public static final ModConfigSpec.IntValue STRUCTURES_FOUNDATION_DEPTH;
+    public static final ModConfigSpec.ConfigValue<String> STRUCTURES_FOUNDATION_BLOCK;
+    public static final ModConfigSpec.IntValue STRUCTURES_CLEAR_ABOVE;
+    public static final ModConfigSpec.BooleanValue STRUCTURES_CRASH_SPAWN_RADIUS_ZERO;
+    public static final ModConfigSpec.ConfigValue<String> STRUCTURES_GUARDIAN;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> STRUCTURES_GUARDS;
+
+    public static final ModConfigSpec.BooleanValue ZONES_ENABLED;
+    public static final ModConfigSpec.DoubleValue ZONES_CORE_RADIUS;
+    public static final ModConfigSpec.DoubleValue ZONES_RADIUS;
+    public static final ModConfigSpec.DoubleValue ZONES_DROP_PER_1000;
+    public static final ModConfigSpec.DoubleValue ZONES_GUARD_CHANCE;
+    public static final ModConfigSpec.IntValue ZONES_FULL_STAGE;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ZONES_LAB_COMPOSITION;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ZONES_INFECTION_STUB;
+
+    public static final ModConfigSpec.BooleanValue PROTECTION_ENABLED;
+    public static final ModConfigSpec.IntValue PROTECTION_MARGIN;
+    public static final ModConfigSpec.IntValue PROTECTION_OP_LEVEL;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> PROTECTION_STRUCTURES;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> PROTECTION_NO_TELEPORT;
+
+    static {
+        BUILDER.comment("Три постройки: жилой отсек у спавна, лаборатория ОРИОНа, место падения капсулы (тест 31)").push("structures");
+        STRUCTURES_AUTO_PLACE = BUILDER.comment("Ставить постройки самому: отсек — при первом запуске мира, лабораторию и Нексус — когда",
+                "их область впервые загрузилась. false — только командой /viva постройки поставить").define("autoPlace", true);
+        STRUCTURES_DISTANCE = BUILDER.comment("Расстояние от спавна до лаборатории и до Нексуса, блоки").defineInRange("distance", 10000.0, 0.0, 1.0e6);
+        STRUCTURES_ANGLE_SHIFT = BUILDER.comment("Поиск суши: сдвиг угла до ±, градусы").defineInRange("searchAngleDegrees", 20.0, 0.0, 180.0);
+        STRUCTURES_ANGLE_STEP = BUILDER.comment("Поиск суши: шаг угла, градусы").defineInRange("searchAngleStepDegrees", 2.0, 0.1, 90.0);
+        STRUCTURES_DISTANCE_SHIFT = BUILDER.comment("Поиск суши: сдвиг расстояния до ±, блоки").defineInRange("searchDistance", 1000.0, 0.0, 1.0e5);
+        STRUCTURES_DISTANCE_STEP = BUILDER.comment("Поиск суши: шаг расстояния, блоки").defineInRange("searchDistanceStep", 100.0, 1.0, 1.0e5);
+        STRUCTURES_LAND_RADIUS = BUILDER.comment("Суша = центр и 4 точки на этом расстоянии — не океан, не река, не пляж").defineInRange("landCheckRadius", 40, 0, 512);
+        STRUCTURES_FOUNDATION_DEPTH = BUILDER.comment("Насколько глубоко засыпать пустоты под постройкой, блоки").defineInRange("foundationDepth", 24, 0, 128);
+        STRUCTURES_FOUNDATION_BLOCK = BUILDER.comment("Чем засыпать пустоты под постройкой").define("foundationBlock", "minecraft:stone");
+        STRUCTURES_CLEAR_ABOVE = BUILDER.comment("Над постройкой (где её верх — воздух) убрать нависающий грунт на столько блоков вверх").defineInRange("clearAboveDepth", 48, 0, 256);
+        STRUCTURES_CRASH_SPAWN_RADIUS_ZERO = BUILDER.comment("После жилого отсека поставить правило spawnRadius = 0 (иначе новичок появляется",
+                "в случайной точке в 10 блоках — на крыше или снаружи отсека)").define("crashSpawnRadiusZero", true);
+        STRUCTURES_GUARDIAN = BUILDER.comment("Машина на метке vivacore:guardian (страж ядра)").define("guardianType", "core_guardian");
+        STRUCTURES_GUARDS = BUILDER.comment("Машины на метках vivacore:guard — по кругу").defineListAllowEmpty("guardTypes",
+                java.util.List.of("infantry_heavy", "infantry_light", "sniper"), () -> "", o -> o instanceof String);
+        BUILDER.pop();
+
+        BUILDER.comment("Зоны влияния вокруг ядер (тест 32): доля стороны = 100% − dropPer1000 × (расстояние ÷ 1000)").push("zones");
+        ZONES_ENABLED = BUILDER.comment("Включены ли зоны").define("enabled", true);
+        ZONES_CORE_RADIUS = BUILDER.comment("Ближе этого к ядру обычные мобы не появляются, блоки").defineInRange("coreRadius", 1000.0, 0.0, 1.0e5);
+        ZONES_RADIUS = BUILDER.comment("Радиус большого круга, блоки (дальше — доля 0)").defineInRange("radius", 9500.0, 0.0, 1.0e6);
+        ZONES_DROP_PER_1000 = BUILDER.comment("На сколько падает доля за 1000 блоков (0.1 = 10%)").defineInRange("dropPer1000", 0.1, 0.0, 1.0);
+        ZONES_GUARD_CHANCE = BUILDER.comment("До полной стадии: шанс моба стороны у ядра (охрана)").defineInRange("guardChance", 0.3, 0.0, 1.0);
+        ZONES_FULL_STAGE = BUILDER.comment("С какой стадии сервера включаются большие круги (4 — «Понимание», латунь)").defineInRange("fullStage", 4, 1, 5);
+        ZONES_LAB_COMPOSITION = BUILDER.comment("Сторона лаборатории: «до расстояния=тип|тип» по возрастанию; берётся первая строка,",
+                "где расстояние до ядра ≤ числа, иначе последняя").defineListAllowEmpty("labComposition",
+                java.util.List.of("1000=infantry_heavy|mech_walker|sniper|tank", "4000=infantry_heavy|infantry_light|sniper",
+                        "9500=scout_drone|infantry_light|swarm_unit"), () -> "", o -> o instanceof String);
+        ZONES_INFECTION_STUB = BUILDER.comment("Сторона заражения, заглушка до Spore: какие заражённые машины ставить").defineListAllowEmpty("infectionStubTypes",
+                java.util.List.of("scout_drone_infected", "infantry_light_infected"), () -> "", o -> o instanceof String);
+        BUILDER.pop();
+
+        BUILDER.comment("Защита построек (тест 34): коробка шаблона + отступ").push("protection");
+        PROTECTION_ENABLED = BUILDER.comment("Включена ли защита").define("enabled", true);
+        PROTECTION_MARGIN = BUILDER.comment("Отступ от коробки шаблона со всех сторон, блоки").defineInRange("margin", 4, 0, 64);
+        PROTECTION_OP_LEVEL = BUILDER.comment("Уровень оператора, которому в творческом режиме можно строить в постройках").defineInRange("opPermissionLevel", 2, 0, 4);
+        PROTECTION_STRUCTURES = BUILDER.comment("Какие постройки защищены: crash, lab, nexus").defineListAllowEmpty("structures",
+                java.util.List.of("crash", "lab", "nexus"), () -> "", o -> o instanceof String);
+        PROTECTION_NO_TELEPORT = BUILDER.comment("Внутрь каких построек нельзя эндер-жемчугом и хорусом").defineListAllowEmpty("noTeleportInto",
+                java.util.List.of("lab"), () -> "", o -> o instanceof String);
+        BUILDER.pop();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private VivaConfig() {}
@@ -446,6 +522,35 @@ public final class VivaConfig {
     public static int emergencyLightLevel() {
         return i(ORION_EMERGENCY_LIGHT);
     }
+
+    private static boolean b(ModConfigSpec.BooleanValue v) { return SPEC.isLoaded() ? v.get() : v.getDefault(); }
+    private static <T> T c(ModConfigSpec.ConfigValue<T> v) { return SPEC.isLoaded() ? v.get() : v.getDefault(); }
+    public static boolean structuresAutoPlace() { return b(STRUCTURES_AUTO_PLACE); }
+    public static double structuresDistance() { return d(STRUCTURES_DISTANCE); }
+    public static double structuresAngleShift() { return d(STRUCTURES_ANGLE_SHIFT); }
+    public static double structuresAngleStep() { return d(STRUCTURES_ANGLE_STEP); }
+    public static double structuresDistanceShift() { return d(STRUCTURES_DISTANCE_SHIFT); }
+    public static double structuresDistanceStep() { return d(STRUCTURES_DISTANCE_STEP); }
+    public static int structuresLandRadius() { return i(STRUCTURES_LAND_RADIUS); }
+    public static int structuresFoundationDepth() { return i(STRUCTURES_FOUNDATION_DEPTH); }
+    public static String structuresFoundationBlock() { return c(STRUCTURES_FOUNDATION_BLOCK); }
+    public static int structuresClearAbove() { return i(STRUCTURES_CLEAR_ABOVE); }
+    public static boolean structuresCrashSpawnRadiusZero() { return b(STRUCTURES_CRASH_SPAWN_RADIUS_ZERO); }
+    public static String structuresGuardianType() { return c(STRUCTURES_GUARDIAN); }
+    public static java.util.List<? extends String> structuresGuardTypes() { return c(STRUCTURES_GUARDS); }
+    public static boolean zonesEnabled() { return b(ZONES_ENABLED); }
+    public static double zonesCoreRadius() { return d(ZONES_CORE_RADIUS); }
+    public static double zonesRadius() { return d(ZONES_RADIUS); }
+    public static double zonesDropPer1000() { return d(ZONES_DROP_PER_1000); }
+    public static double zonesGuardChance() { return d(ZONES_GUARD_CHANCE); }
+    public static int zonesFullStage() { return i(ZONES_FULL_STAGE); }
+    public static java.util.List<? extends String> zonesLabComposition() { return c(ZONES_LAB_COMPOSITION); }
+    public static java.util.List<? extends String> zonesInfectionStubTypes() { return c(ZONES_INFECTION_STUB); }
+    public static boolean protectionEnabled() { return b(PROTECTION_ENABLED); }
+    public static int protectionMargin() { return i(PROTECTION_MARGIN); }
+    public static int protectionOpLevel() { return i(PROTECTION_OP_LEVEL); }
+    public static java.util.List<? extends String> protectionStructures() { return c(PROTECTION_STRUCTURES); }
+    public static java.util.List<? extends String> protectionNoTeleportInto() { return c(PROTECTION_NO_TELEPORT); }
 
     public static double zhivaDeviceReach() {
         return SPEC.isLoaded() ? ZHIVA_DEVICE_REACH.get() : ZHIVA_DEVICE_REACH.getDefault();
