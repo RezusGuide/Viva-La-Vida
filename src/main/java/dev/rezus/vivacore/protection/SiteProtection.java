@@ -7,6 +7,7 @@ import dev.rezus.vivacore.structures.Structures;
 import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -84,6 +85,34 @@ public final class SiteProtection {
             if (types.contains(p.type().id) && inside(p.box(), pos, m)) return true;
         }
         return false;
+    }
+
+    /** Раздатчик в pos, повёрнутый в facing: снаружи коробки внутрь — нельзя (DispenserBlockMixin). */
+    public static boolean dispenseBlocked(Level level, BlockPos pos, Direction facing) {
+        return isProtected(level, pos.relative(facing)) && !isProtected(level, pos);
+    }
+
+    /** Огонь в pos убрать (BaseFireBlockMixin): в коробке — да, кроме огня, который ставит сама постройка. */
+    public static boolean fireBlocked(Level level, BlockPos pos) {
+        return !level.isClientSide() && !Structures.isBuilding() && isProtected(level, pos);
+    }
+
+    /**
+     * Огниво и огненный заряд в руке игрока по блоку в коробке (или с краю внутрь) — отказ: поджога в постройке нет
+     * (огонь и так не устоит — BaseFireBlockMixin, — но так не тратится прочность огнива и не поджигается свеча/костёр/TNT).
+     */
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        ItemStack stack = event.getItemStack();
+        if (!(stack.getItem() instanceof net.minecraft.world.item.FlintAndSteelItem)
+                && !(stack.getItem() instanceof net.minecraft.world.item.FireChargeItem)) {
+            return;
+        }
+        if (bypass(event.getEntity()) || event.getLevel().isClientSide()) return;
+        BlockPos pos = event.getPos();
+        Direction face = event.getFace();
+        if (isProtected(event.getLevel(), pos) || (face != null && isProtected(event.getLevel(), pos.relative(face)))) {
+            event.setCanceled(true);
+        }
     }
 
     /** Оператор в творческом режиме может строить в постройках. */

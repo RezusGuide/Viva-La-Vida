@@ -13,6 +13,8 @@ public final class VivaClient {
     public static void init(IEventBus modBus) {
         modBus.addListener(VivaClient::onRegisterRenderers);
         modBus.addListener(ArmyParticleProviders::register);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(Tracers::onClientTick);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(Tracers::onRenderLevel);
         DevScreenshots.initIfEnabled();
     }
 

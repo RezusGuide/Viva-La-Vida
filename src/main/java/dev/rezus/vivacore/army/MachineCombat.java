@@ -11,6 +11,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * Оружие одной машины ОРИОНа (задача 7). Все числа — конфиг army.&lt;id&gt;.*.
+ * Пули (очереди, пулемёт вертолёта, снайпер) — мгновенный выстрел {@link Hitscan} без сущности (задача 9, тест 38);
+ * сущностями остаются ракеты, снаряд танка и сквозной снаряд тяжёлых — с лимитом {@link ArmyLimits}.
  * Стреляет только по своей цели (getTarget) при прямой видимости; тяжёлые взрывные снаряды при выключенном
  * vivaArmyGriefing становятся сквозными и могут бить через лёгкие блоки (не больше pierceBlocks).
  * <ul>
@@ -185,11 +187,21 @@ public final class MachineCombat {
         Vec3 from = muzzle(muzzleIdx);
         Vec3 aim = new Vec3(target.getX(), target.getY(0.6), target.getZ());
         Vec3 dir = aim.subtract(from);
-        OrionProjectile p = OrionProjectile.create(level, m, kind, damage, power);
-        p.setPos(from);
-        p.shoot(dir.x, dir.y, dir.z, (float) speed, (float) spread);
-        level.addFreshEntity(p);
-        level.sendParticles(ArmyParticles.MUZZLE_FLASH.get(), from.x, from.y, from.z, 1, 0, 0, 0, 0);
+        if (kind == OrionProjectile.Kind.BULLET && VivaConfig.armyHitscanBullets()) {
+            // пули — мгновенный выстрел без сущности (задача 9, тест 38)
+            MachineType t = m.machine();
+            byte tracer = t.weapon() == MachineType.Weapon.SNIPER ? ArmyNetwork.KIND_SNIPER : ArmyNetwork.KIND_BULLET;
+            Hitscan.fire(level, m, from, Hitscan.spread(m.getRandom(), dir, spread),
+                    VivaConfig.machineFireRange(t) * VivaConfig.armyHitscanRangeFactor(), damage, null, tracer);
+        } else {
+            // ракеты, снаряд танка, сквозной снаряд тяжёлых — сущности, но не больше лимита на участок
+            if (!ArmyLimits.canSpawnProjectile(level, from)) return;
+            OrionProjectile p = OrionProjectile.create(level, m, kind, damage, power);
+            p.setPos(from);
+            p.shoot(dir.x, dir.y, dir.z, (float) speed, (float) spread);
+            level.addFreshEntity(p);
+            level.sendParticles(ArmyParticles.MUZZLE_FLASH.get(), from.x, from.y, from.z, 1, 0, 0, 0, 0);
+        }
         if (anim != null) {
             m.triggerAnim("attack", anim);
         }

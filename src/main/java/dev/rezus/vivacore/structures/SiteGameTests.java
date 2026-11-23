@@ -1,5 +1,7 @@
 package dev.rezus.vivacore.structures;
 
+import dev.rezus.vivacore.VivaConfig;
+
 import dev.rezus.vivacore.VivaCore;
 import dev.rezus.vivacore.army.OrionMachine;
 import net.minecraft.core.BlockPos;
@@ -25,14 +27,14 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 public final class SiteGameTests {
     private SiteGameTests() {}
 
-    private static final SitePlanner.Params P = new SitePlanner.Params(10000, 20, 2, 1000, 100, 40);
+    private static final SitePlanner.Params P = new SitePlanner.Params(10000, 20, 2, 1000, 100, 16, 8, 2.0);
 
     @GameTest(template = "empty", batch = "sites_plan")
     public static void planOppositeOnLand(GameTestHelper h) {
         BlockPos spawn = new BlockPos(120, 64, -45);
-        SitePlanner.Plan a = SitePlanner.plan(12345L, spawn, P, (x, z) -> true);
-        SitePlanner.Plan b = SitePlanner.plan(12345L, spawn, P, (x, z) -> true);
-        SitePlanner.Plan c = SitePlanner.plan(98765L, spawn, P, (x, z) -> true);
+        SitePlanner.Plan a = SitePlanner.plan(12345L, spawn, P, 32, 20, (x, z) -> true);
+        SitePlanner.Plan b = SitePlanner.plan(12345L, spawn, P, 32, 20, (x, z) -> true);
+        SitePlanner.Plan c = SitePlanner.plan(98765L, spawn, P, 32, 20, (x, z) -> true);
         double dl = dist(spawn, a.lab());
         double dn = dist(spawn, a.nexus());
         h.assertTrue(Math.abs(dl - 10000) <= 1 && Math.abs(dn - 10000) <= 1, "обе точки в 10 000 от спавна: " + dl + ", " + dn);
@@ -52,7 +54,7 @@ public final class SiteGameTests {
         BlockPos direct = SitePlanner.point(spawn, angle, 10000);
         // океан — круг 450 блоков вокруг прямой точки лаборатории
         SitePlanner.LandTest land = (x, z) -> Math.hypot(x - direct.getX(), z - direct.getZ()) > 450;
-        SitePlanner.Plan plan = SitePlanner.plan(777L, spawn, P, land);
+        SitePlanner.Plan plan = SitePlanner.plan(777L, spawn, P, 32, 20, land);
         h.assertTrue(plan.labOnLand(), "лаборатория сдвинута на сушу");
         h.assertTrue(!plan.lab().equals(direct), "точка лаборатории сдвинута");
         h.assertTrue(land.isLand(plan.lab().getX(), plan.lab().getZ()), "новая точка — суша");
@@ -64,8 +66,129 @@ public final class SiteGameTests {
         BlockPos nexusDirect = SitePlanner.point(spawn, angle + Math.PI, 10000);
         h.assertTrue(plan.nexus().equals(nexusDirect), "Нексус на суше — не сдвинут");
         // суши нет совсем — точка остаётся прямой, флаг «не суша»
-        SitePlanner.Plan none = SitePlanner.plan(777L, spawn, P, (x, z) -> false);
+        SitePlanner.Plan none = SitePlanner.plan(777L, spawn, P, 32, 20, (x, z) -> false);
         h.assertTrue(!none.labOnLand() && none.lab().equals(direct), "без суши — прямая точка и флаг");
+        h.succeed();
+    }
+
+    /**
+     * Задача 9: островок. В прямой точке Нексуса — остров 50×50 в океане (площадь постройки 40×40 он покрывает, но он
+     * меньше площади × 2) — место отброшено; большая суша — дальше 300 блоков. Сетка суши видит и воду у края площади.
+     */
+    @GameTest(template = "empty", batch = "sites_plan")
+    public static void planSkipsSmallIsland(GameTestHelper h) {
+        BlockPos spawn = BlockPos.ZERO;
+        SitePlanner.Params p = new SitePlanner.Params(10000, 20, 2, 1000, 100, 0, 8, 2.0);
+        double angle = SitePlanner.angleFromSeed(4242L);
+        BlockPos nexusDirect = SitePlanner.point(spawn, angle + Math.PI, 10000);
+        SitePlanner.LandTest land = (x, z) -> {
+            int dx = Math.abs(x - nexusDirect.getX());
+            int dz = Math.abs(z - nexusDirect.getZ());
+            return (dx <= 25 && dz <= 25) || Math.hypot(dx, dz) > 300;
+        };
+        h.assertTrue(SitePlanner.landArea(nexusDirect, 20, 8, land), "площадь постройки на островке — суша");
+        h.assertTrue(!SitePlanner.fits(nexusDirect, 20, p, land), "островок меньше площади × 2 — не подходит");
+        SitePlanner.Params noIsland = new SitePlanner.Params(10000, 20, 2, 1000, 100, 0, 8, 0.0);
+        h.assertTrue(SitePlanner.fits(nexusDirect, 20, noIsland, land), "без проверки острова островок подошёл бы");
+        SitePlanner.Plan plan = SitePlanner.plan(4242L, spawn, p, 32, 20, land);
+        h.assertTrue(plan.nexusOnLand() && !plan.nexus().equals(nexusDirect), "Нексус сдвинут с островка: " + plan.nexus());
+        h.assertTrue(Math.hypot(plan.nexus().getX() - nexusDirect.getX(), plan.nexus().getZ() - nexusDirect.getZ()) > 300 - 20,
+                "новое место — на большой суше");
+        // вода у края площади (а не в центре и не в 4 точках, как раньше) — тоже не подходит
+        SitePlanner.LandTest corner = (x, z) -> !(x > nexusDirect.getX() + 15 && z > nexusDirect.getZ() + 15);
+        h.assertTrue(!SitePlanner.landArea(nexusDirect, 20, 8, corner), "вода в углу площади видна");
+        h.succeed();
+    }
+
+    /** Верх твёрдого блока в столбце (без растений), сверху вниз от maxY. */
+    private static int top(ServerLevel level, int x, int z, int maxY) {
+        for (int y = maxY; y > level.getMinBuildHeight(); y--) {
+            var st = level.getBlockState(new BlockPos(x, y, z));
+            if (!st.isAir() && !st.canBeReplaced() && st.blocksMotion()) return y;
+        }
+        return level.getMinBuildHeight();
+    }
+
+    /**
+     * Задача 9: обрыв под постройкой и края. Плато высотой 10 с обрывом, который проходит под западной частью
+     * площадки Нексуса: под постройкой не остаётся воздуха (столбы до земли: у земли — земля, выше — камень), а с запада
+     * от коробки высота меняется не больше чем на 3 блока за шаг (без сведения краёв — обрыв в 10 блоков).
+     */
+    @GameTest(template = "empty", batch = "sites_foundation", timeoutTicks = 200)
+    public static void foundationPillarsAndEdges(GameTestHelper h) {
+        cliffSite(h, SiteType.NEXUS);
+    }
+
+    /**
+     * То же с лабораторией: её край — стены, пол — на уровне земли постройки; к западу местность на 10 ниже — земля
+     * снаружи должна сойти от уровня пола склоном (первый столбец за стеной — не дальше 3 от пола, шаг не больше 3).
+     */
+    @GameTest(template = "empty", batch = "sites_foundation_lab", timeoutTicks = 200)
+    public static void labEdgesSlopeToTerrain(GameTestHelper h) {
+        cliffSite(h, SiteType.LAB);
+    }
+
+    private static void cliffSite(GameTestHelper h, SiteType type) {
+        MinecraftServer server = h.getLevel().getServer();
+        ServerLevel level = server.overworld();
+        Structures.resetForTests(server);
+        // мир GameTest сохраняется между прогонами — каждый раз новое место (иначе там уже плато и Нексус прошлого прогона)
+        BlockPos c = new BlockPos(36000 + 512 * level.random.nextInt(400), 0, 30000 + 512 * level.random.nextInt(400));
+        for (int cx = (c.getX() - 80) >> 4; cx <= (c.getX() + 80) >> 4; cx++) {
+            for (int cz = (c.getZ() - 80) >> 4; cz <= (c.getZ() + 80) >> 4; cz++) level.getChunk(cx, cz);
+        }
+        int y0 = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ()) - 1;
+        int cliffX = c.getX() - 5;
+        for (int x = c.getX() - 70; x <= c.getX() + 70; x++) {
+            for (int z = c.getZ() - 70; z <= c.getZ() + 70; z++) {
+                if (x < cliffX) continue;
+                for (int y = y0 + 1; y <= y0 + 10; y++) {
+                    level.setBlock(new BlockPos(x, y, z), y == y0 + 10 ? Blocks.GRASS_BLOCK.defaultBlockState() : Blocks.STONE.defaultBlockState(), 2);
+                }
+            }
+        }
+        BoundingBox box = Structures.placeAt(level, type, c, Rotation.NONE);
+        h.assertTrue(box != null, type.id + " поставлен");
+        int gaps = 0;
+        int columns = 0;
+        for (int x = box.minX(); x <= box.maxX(); x++) {
+            for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                if (level.getBlockState(new BlockPos(x, box.minY(), z)).isAir()) continue;
+                columns++;
+                for (int y = box.minY() - 1; y > y0; y--) {
+                    if (level.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                        gaps++;
+                        break;
+                    }
+                }
+            }
+        }
+        int px = box.minX() + 5;
+        var nearGround = level.getBlockState(new BlockPos(px, y0 + 2, c.getZ()));
+        int yHigh = box.minY() - 1; // сразу под низом коробки
+        var higher = level.getBlockState(new BlockPos(px, yHigh, c.getZ()));
+        var expectHigh = yHigh - y0 <= 3 ? Blocks.DIRT : Blocks.STONE;
+        int maxStep = 0;
+        int first = top(level, box.minX() - 1, c.getZ(), box.maxY() + 10);
+        int prev = type == SiteType.LAB ? first : top(level, box.minX(), c.getZ(), box.maxY() + 10);
+        StringBuilder row = new StringBuilder().append(prev);
+        for (int x = type == SiteType.LAB ? box.minX() - 2 : box.minX() - 1; x >= box.minX() - VivaConfig.structuresEdgeBlend() - 3; x--) {
+            int t = top(level, x, c.getZ(), box.maxY() + 10);
+            maxStep = Math.max(maxStep, Math.abs(t - prev));
+            row.append(' ').append(t);
+            prev = t;
+        }
+        Structures.resetForTests(server);
+        h.assertTrue(columns > 0 && gaps == 0, "под постройкой нет пустот: столбцов " + columns + ", с воздухом " + gaps + " (y0 " + y0
+                + ", низ коробки " + box.minY() + ")");
+        h.assertTrue(nearGround.is(Blocks.DIRT) && higher.is(expectHigh), "столб: у земли " + nearGround + ", под коробкой (y0+"
+                + (yHigh - y0) + ") " + higher);
+        h.assertTrue(maxStep <= 3, "к западу от коробки шаг высоты не больше 3: " + row);
+        if (type == SiteType.LAB) {
+            // пол лаборатории: уровень земли постройки = верх плато (y0 + 10) — земля у стены не ниже пола больше чем на 3
+            h.assertTrue(first >= y0 + 10 - 3, "у западной стены земля поднята к полу: " + first + " при плато " + (y0 + 10) + ", ряд " + row);
+            h.assertTrue(prev <= y0 + 1, "дальше полосы — местность (" + y0 + "): " + prev);
+        }
         h.succeed();
     }
 

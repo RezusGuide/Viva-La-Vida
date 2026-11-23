@@ -67,11 +67,26 @@
   (BULLET / PIERCING / SHELL / ROCKET, спрайты агента моделей), частицы `ArmyParticles` (вспышка, искры, обломки).
   Позиции стволов — данные в `MachineType.muzzles()` (pivot костей muzzle* из .geo.json; на сервере моделей нет).
   Числа — `army.<id>.*` (+ ракеты, щит, лазер, аура). Свои своих не бьют (`Factions.sameSide`).
+- Экономия в бою (задача 9, тест 38): пули (очереди, пулемёт вертолёта, снайпер) — мгновенный выстрел `Hitscan`
+  без сущности: поиск сущности на всём луче, потом блоки только до неё; клиенту — один пакет `ArmyNetwork.Tracer`
+  («из A в B», только игрокам ближе `army.combat.tracerSendRange`), клиент (`client/Tracers`) рисует черту, вспышку
+  и искры (скорость/длина/толщина — клиентский конфиг `army.tracer*`). Сущностями остаются ракеты, снаряд танка и
+  сквозной снаряд тяжёлых; лимиты `ArmyLimits`: снарядов-сущностей на участок `army.combat.maxProjectilesPerSector`
+  (сверх — выстрел пропускается), взрывов за тик `army.combat.maxExplosionsPerTick` (сверх — только урон рядом, без
+  блоков). `army.combat.hitscanBullets = false` — пули снова сущности (для сравнения нагрузки).
+  Блоки — общая трассировка `ShotTrace` (Sable, pierceable / blast_proof). Замер: `/viva devbench combat <прогрев>
+  <замер> [групп]` (только dev, `army/CombatBench`): группа = 4 неуязвимых разбойника + 20 машин, как в задаче 7;
+  `Hitscan.STATS` — время мгновенных выстрелов и тиков снарядов. Главная цена боя — взрывы (~3 мс на взрыв).
 - Правило игры `vivaArmyGriefing` (`ArmyRules`): вкл — взрывы ванильные (`ExplosionInteraction.TNT`, проходят через
   `ExplosionEvent.Detonate` — приват OPAC их фильтрует); выкл — танк и ракеты вертолёта стреляют сквозными (тег
   `vivacore:pierceable`, стоп на `vivacore:blast_proof`), и такие машины выбирают цели за лёгкой стеной.
 - Трассировка снарядов — через `level.clip`, а не `BlockGetter.traverseBlocks`: `clip` подменяет Sable, и снаряд
-  видит блоки кораблей. Точка попадания в блок корабля приходит в координатах участка корабля (plot), не мира.
+  видит блоки кораблей. Точка попадания в блок корабля приходит в координатах участка корабля (plot) — `ShotTrace`
+  сразу переводит её в мир через `compat/SableCompat` (рефлексия:
+  `dev.ryanhcode.sable.companion.SableCompanion.INSTANCE.projectOutOfSubLevel(Level, Vec3)` — так делает сам Sable в
+  своём миксине взрывов); `getBlockPos()` остаётся позицией в участке (по ней читается блок). Взрывы Sable переносит в
+  мир сам (миксин `ServerLevel.explode`). До задачи 9 искры падали в участок, а поиск сущностей шёл по лучу до точки
+  участка (тысячи блоков).
 - Три стороны (`Factions`): списки целей — `army.targets.orion` / `army.targets.infected`. Мобы Spore — по пространству
   имён `spore`. Захват заражением: машину убил моб Spore или заражённая → с шансом `army.infection.convertChance`
   встаёт заражённая версия (`MachineType.infectedVariant`).
@@ -79,7 +94,16 @@
   (карта высот выше игрока) — только `fitsCave()` машины на его высоте ±8.
 - Цели Mob оценивает только в тики с чётным `(tickCount + id)` — периодические проверки в `canUse` делать с учётом id.
 - GameTest с машинами — каждый в своей пачке (batch): машины воюют между собой, а тесты одной пачки стоят рядом.
-  Тест Sable (`SableHitGameTests`, необязательный) работает, только если Sable лежит в `run/mods`.
+  Тест Sable (`SableHitGameTests`, необязательный) работает, только если Sable лежит в `run/mods`. Платформа
+  `/sable spawn platform 5` — это 11×11; корабль падает, ложится на пол наклонно и «утопает» в нём до блока, а в
+  плоском мире GameTest иногда проваливается сквозь пол (3 из 8 прогонов) — прицел строится от доски палубы (её позиция
+  в участке → мир), выстрелы — сверху вниз, если корабль не лежит на полу, проверки палубы пропускаются (WARN в лог).
+  `SableCompanion.getVelocity` ждёт точку в участке корабля, не в мире.
+  Таран (`protection/SableRamGameTests`, необязательный): по коду Sable 2.0.6 ломает только блоки со свойством
+  `sable:fragile` (тег `#sable:fragile`: листва, бамбук, арбуз, тыква, кактус, лёд, лилия) —
+  `FragileBlockCallback.onHit` → `ServerLevel.destroyBlock`, без событий; блоки-взрывчатка взрываются через обычный
+  взрыв (его фильтрует защита). В шаблонах построек хрупких блоков нет; закрыть хрупкую местность в отступе можно только
+  миксином во внутренний класс Sable — не сделано.
   Модели плагина смотрят в −Z (так же, как сущности в игре — проверено скриншотами), правая сторона модели +X;
   имена костей left/right в моделях могут быть перепутаны — в коде к костям по именам не обращаться.
 - Тестовый игрок в GameTest: **не** `makeMockServerPlayerInLevel` — Create шлёт игроку в мире свои пакеты, фальшивое
@@ -105,8 +129,14 @@
   (`/viva structures build <crash|lab|nexus>` — только в dev, пишет в `src/main/resources/data/vivacore/structure/`;
   из консоли с pipe — команда приходит без мира, генератор берёт overworld). Код размещения знает только имя файла
   и метки (structure_block, режим DATA, поле metadata): `vivacore:ground` (уровень земли), `core`, `player_spawn`,
-  `guardian`, `guard`. Метки в мир не ставятся (BlockIgnoreProcessor). После шаблона — засыпка пустот снизу
-  (`foundationDepth`) и расчистка нависающего грунта сверху (`clearAboveDepth`). Вода местности (озеро рядом —
+  `guardian`, `guard`. Метки в мир не ставятся (BlockIgnoreProcessor). После шаблона — столбы фундамента до земли
+  (`foundationMaxDepth`; у земли 3 блока — то, что под ней: земля под травой, песчаник под песком; выше — камень
+  местности), расчистка нависающего грунта сверху (`clearAboveDepth`) и сведение краёв (`blendEdges`: полоса
+  `edgeBlend` снаружи — smoothstep к местности, склон ≤ `edgeSlope` на блок, неровность ±1; уровень у края — верх
+  природной земли ближайшего столбца коробки, у стен лаборатории — уровень земли постройки; кайма `edgeInner` внутри —
+  только природная земля). У Нексуса и отсека края шаблона — structure_void: там остаётся местность.
+  Поиск места (задача 9): суша по сетке `landGridStep` на всей площади (половина большей стороны шаблона +
+  `landMargin`) и не островок — связная суша ≥ площадь × `islandFactor` (заливка по сетке 2 × шаг); ~70–120 мс на мир. Вода местности (озеро рядом —
   планировщик обходит только океан/реку/пляж по биомам) убирается из коробки, кольцо в 1 блок вокруг коробки
   засыпается — иначе вода затекает в постройку (найдено на скриншоте Нексуса у океана, тест `waterDoesNotFlood`).
 - Когда ставятся: отсек — `ServerStartedEvent` (чанки спавна загружены), спавн мира → метка player_spawn, spawnRadius 0
@@ -125,14 +155,26 @@
   `BlockMovementChecks.registerMovementAllowedCheck` (`CreateProtection`); разрушение — миксины (событие у Create не
   шлётся: `BlockHelper.destroyBlock` зовёт `destroyBlockAs` с player = null, без BreakEvent). Ящики припасов — тег
   `vivacore:protection_exempt`. Оператор (уровень `protection.opPermissionLevel`) в творческом — может всё.
+  Задача 9 (ванильные миксины, события нет): раздатчик снаружи внутрь (`DispenserBlockMixin`), огонь в коробке
+  (`BaseFireBlockMixin` — любой огонь сразу убирается, кроме огня шаблона во время установки, `Structures.isBuilding`;
+  `FireBlockMixin` — снаружи не сжигает блоки внутри), жидкость снаружи внутрь (`FlowingFluidMixin`), огниво и огненный
+  заряд игрока — `RightClickBlock`. Create: разборка контрапции в коробку (`CreateContraptionMixin`). Огонь, который
+  оператор ставит в коробку `/setblock`, тоже убирается.
 - `runGameTestServer` и `runServer` работают с одной папкой `run/world` (тот же сид; площадки тестов ставятся в
   случайном далёком месте этого мира). Тесты задачи 8 в конце сбрасывают постройки (`Structures.resetForTests`), стадию
   и флаг ОРИОНа — и это сохраняется в `run/world`: после runGameTestServer следующий runServer считает, что построек
-  нет, и ставит отсек заново. Для dev-мира неважно, но не держи в `run/world` ничего ценного.
+  нет, и ставит отсек заново. Для dev-мира неважно, но не держи в `run/world` ничего ценного. Блоки, которые тест
+  ставит в мир, тоже остаются: тест, который строит рельеф, берёт новое случайное место каждый прогон.
 - Dev-замер нагрузки зон: `/viva devbench <прогрев> <замер>` (только dev) — 5 ботов (`TestPlayers.detached`,
   добавлены в мир: вокруг них грузятся чанки и идёт естественный спавн), стадия 4, армия вкл, ночь; итоги в лог
   «Viva Core bench: …», сервер останавливается сам. `-PvivaDevShots=100,180,…` — свои тики кадров dev-скриншотов;
   при телепорте сценой (прыжок > 4 блоков) хук перехватывает поворот камеры заново.
+  Сцены задачи 9 (скрипты в `run/tmp-task9/`, не в git): `shoot_seed.py <сид>` — свежий мир с сидом на
+  dedicated-сервере, постройки по плану, перенос в `run/saves`, 5 кадров клиентом. Подводные камни: `positioned over
+  world_surface` в незагруженном чанке молча не срабатывает (сначала простой tp, потом через ~100 тиков — над
+  поверхностью); при генерации чанков сервер тикает медленнее клиента — кадр ставить посередине между ракурсами (~250
+  тиков до и после); для съёмки трассеров — каменная площадка в воздухе и `tracerSpeed = 1` в `run/config/vivacore-client.toml`
+  (вернуть 6).
   В сценах скриншотов давай ночное видение без частиц: `effect give @s minecraft:night_vision infinite 0 true`.
 - Свет блоков в 1.21.1 кешируется в BlockState при регистрации (до загрузки конфига): уровень из конфига — через
   позиционный `getLightEmission(state, level, pos)` (NeoForge), статический `lightLevel` — значение по умолчанию.
@@ -151,6 +193,11 @@
   - `CreateBreakingMovementMixin` (`BlockBreakingMovementBehaviour.canBreak`): RETURN → false в коробке — контрапция
     упирается, как в бедрок. `CreateBreakingBlockEntityMixin` (`BlockBreakingKineticBlockEntity.canBreak(BlockState,
     float)`, позиция — `getBreakingPos()`): стоячие дрель/пила не начинают ломать.
+  - `CreateContraptionMixin` (Create `Contraption.addBlocksToWorld`): `@WrapOperation` вызова
+    `BlockState.getDestroySpeed` → в коробке −1, и Create сам выбрасывает блок контрапции предметом (иначе стоящий блок
+    ломается `destroyBlock`, и на его место встаёт блок контрапции).
+  - Ванильные (задача 9, защита): `DispenserBlockMixin` (`dispenseFrom` HEAD), `BaseFireBlockMixin` (`onPlace` HEAD),
+    `FireBlockMixin` (`checkBurnOut` HEAD, у NeoForge есть параметр Direction), `FlowingFluidMixin` (`spreadTo` HEAD).
   - `WaterWheelBlockEntityMixin` (Create `WaterWheelBlockEntity`): `getGeneratedSpeed` HEAD cancellable → 0 у лишнего
     колеса; `setFlowScoreAndUpdate` INVOKE перед `updateGeneratedRotation` → проверка лимита; `write` TAIL /
     `read` RETURN → NBT `vivacore:limited`, `vivacore:order`.

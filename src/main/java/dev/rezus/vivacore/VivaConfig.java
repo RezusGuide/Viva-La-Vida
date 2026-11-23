@@ -110,6 +110,11 @@ public final class VivaConfig {
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ARMY_TARGETS_ORION;
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ARMY_TARGETS_INFECTED;
     public static final ModConfigSpec.DoubleValue ARMY_INFECTION_CHANCE;
+    public static final ModConfigSpec.BooleanValue ARMY_HITSCAN_BULLETS;
+    public static final ModConfigSpec.DoubleValue ARMY_HITSCAN_RANGE_FACTOR;
+    public static final ModConfigSpec.DoubleValue ARMY_TRACER_SEND_RANGE;
+    public static final ModConfigSpec.IntValue ARMY_MAX_PROJECTILES;
+    public static final ModConfigSpec.IntValue ARMY_MAX_EXPLOSIONS;
 
     private static final java.util.Map<dev.rezus.vivacore.army.MachineType, Machine> MACHINES =
             new java.util.EnumMap<>(dev.rezus.vivacore.army.MachineType.class);
@@ -230,6 +235,26 @@ public final class VivaConfig {
                 .defineInRange("convertChance", 0.5, 0.0, 1.0);
         BUILDER.pop();
 
+        BUILDER.comment("Экономия в бою (тест 38, задача 9): пули — мгновенный выстрел без сущности, лимиты снарядов и взрывов")
+                .push("combat");
+        ARMY_HITSCAN_BULLETS = BUILDER
+                .comment("Пули — мгновенный выстрел (true) или, как в задаче 7, снаряды-сущности (false; для сравнения нагрузки)")
+                .define("hitscanBullets", true);
+        ARMY_HITSCAN_RANGE_FACTOR = BUILDER
+                .comment("Дальность мгновенного выстрела = дальность огня машины (army.<id>.fireRange) × это")
+                .defineInRange("hitscanRangeFactor", 1.5, 1.0, 4.0);
+        ARMY_TRACER_SEND_RANGE = BUILDER
+                .comment("Пакет трассера (рисунок выстрела) шлётся игрокам не дальше этого от начала или конца выстрела, блоки")
+                .defineInRange("tracerSendRange", 128.0, 16.0, 512.0);
+        ARMY_MAX_PROJECTILES = BUILDER
+                .comment("Не больше стольких снарядов-сущностей ОРИОНа (ракеты, снаряды танка, сквозные) одновременно в участке",
+                        "army.alarm.sectorSize; сверх лимита машина пропускает выстрел")
+                .defineInRange("maxProjectilesPerSector", 16, 0, 1000);
+        ARMY_MAX_EXPLOSIONS = BUILDER
+                .comment("Не больше стольких взрывов ОРИОНа за тик на сервере; лишние — без взрыва, только урон рядом")
+                .defineInRange("maxExplosionsPerTick", 4, 0, 100);
+        BUILDER.pop();
+
         for (dev.rezus.vivacore.army.MachineType t : dev.rezus.vivacore.army.MachineType.values()) {
             BUILDER.push(t.id);
             MACHINES.put(t, new Machine(
@@ -322,6 +347,11 @@ public final class VivaConfig {
     public static final ModConfigSpec.DoubleValue STRUCTURES_DISTANCE_SHIFT;
     public static final ModConfigSpec.DoubleValue STRUCTURES_DISTANCE_STEP;
     public static final ModConfigSpec.IntValue STRUCTURES_LAND_RADIUS;
+    public static final ModConfigSpec.IntValue STRUCTURES_LAND_GRID;
+    public static final ModConfigSpec.DoubleValue STRUCTURES_ISLAND_FACTOR;
+    public static final ModConfigSpec.IntValue STRUCTURES_EDGE_BLEND;
+    public static final ModConfigSpec.IntValue STRUCTURES_EDGE_SLOPE;
+    public static final ModConfigSpec.IntValue STRUCTURES_EDGE_INNER;
     public static final ModConfigSpec.IntValue STRUCTURES_FOUNDATION_DEPTH;
     public static final ModConfigSpec.ConfigValue<String> STRUCTURES_FOUNDATION_BLOCK;
     public static final ModConfigSpec.IntValue STRUCTURES_CLEAR_ABOVE;
@@ -353,8 +383,19 @@ public final class VivaConfig {
         STRUCTURES_ANGLE_STEP = BUILDER.comment("Поиск суши: шаг угла, градусы").defineInRange("searchAngleStepDegrees", 2.0, 0.1, 90.0);
         STRUCTURES_DISTANCE_SHIFT = BUILDER.comment("Поиск суши: сдвиг расстояния до ±, блоки").defineInRange("searchDistance", 1000.0, 0.0, 1.0e5);
         STRUCTURES_DISTANCE_STEP = BUILDER.comment("Поиск суши: шаг расстояния, блоки").defineInRange("searchDistanceStep", 100.0, 1.0, 1.0e5);
-        STRUCTURES_LAND_RADIUS = BUILDER.comment("Суша = центр и 4 точки на этом расстоянии — не океан, не река, не пляж").defineInRange("landCheckRadius", 40, 0, 512);
-        STRUCTURES_FOUNDATION_DEPTH = BUILDER.comment("Насколько глубоко засыпать пустоты под постройкой, блоки").defineInRange("foundationDepth", 24, 0, 128);
+        STRUCTURES_LAND_RADIUS = BUILDER.comment("Поиск суши (задача 9): суша нужна по всей площади постройки и ещё на столько блоков вокруг",
+                "(не океан, не река, не пляж)").defineInRange("landMargin", 16, 0, 512);
+        STRUCTURES_LAND_GRID = BUILDER.comment("Поиск суши: шаг сетки точек шума биомов по площади, блоки (меньше — точнее и дольше)")
+                .defineInRange("landGridStep", 8, 1, 64);
+        STRUCTURES_ISLAND_FACTOR = BUILDER.comment("Поиск суши: остров (связная суша вокруг точки) должен быть не меньше площади постройки × это")
+                .defineInRange("islandFactor", 2.0, 0.0, 100.0);
+        STRUCTURES_FOUNDATION_DEPTH = BUILDER.comment("Насколько глубоко ставить столбы фундамента под постройкой до земли (обрыв, склон), блоки")
+                .defineInRange("foundationMaxDepth", 64, 0, 256);
+        STRUCTURES_EDGE_BLEND = BUILDER.comment("Края (задача 9): ширина полосы вокруг постройки, где земля плавно сводится к местности, блоки")
+                .defineInRange("edgeBlend", 6, 0, 32);
+        STRUCTURES_EDGE_SLOPE = BUILDER.comment("Края: склон не круче стольких блоков высоты на блок от края").defineInRange("edgeSlope", 2, 1, 8);
+        STRUCTURES_EDGE_INNER = BUILDER.comment("Края: на столько блоков внутрь постройки природная земля (не постройка) неровно сдвигается к местности")
+                .defineInRange("edgeInner", 2, 0, 8);
         STRUCTURES_FOUNDATION_BLOCK = BUILDER.comment("Чем засыпать пустоты под постройкой").define("foundationBlock", "minecraft:stone");
         STRUCTURES_CLEAR_ABOVE = BUILDER.comment("Над постройкой (где её верх — воздух) убрать нависающий грунт на столько блоков вверх").defineInRange("clearAboveDepth", 48, 0, 256);
         STRUCTURES_CRASH_SPAWN_RADIUS_ZERO = BUILDER.comment("После жилого отсека поставить правило spawnRadius = 0 (иначе новичок появляется",
@@ -488,6 +529,11 @@ public final class VivaConfig {
     public static int sniperLaserTicks() { return i(SNIPER_LASER_TICKS); }
     public static double swarmAuraRadius() { return d(SWARM_AURA_RADIUS); }
     public static int armyPierceBlocks() { return i(ARMY_PIERCE_BLOCKS); }
+    public static boolean armyHitscanBullets() { return b(ARMY_HITSCAN_BULLETS); }
+    public static double armyHitscanRangeFactor() { return d(ARMY_HITSCAN_RANGE_FACTOR); }
+    public static double armyTracerSendRange() { return d(ARMY_TRACER_SEND_RANGE); }
+    public static int armyMaxProjectilesPerSector() { return i(ARMY_MAX_PROJECTILES); }
+    public static int armyMaxExplosionsPerTick() { return i(ARMY_MAX_EXPLOSIONS); }
     public static double armyInfectionChance() { return d(ARMY_INFECTION_CHANCE); }
 
     public static java.util.List<? extends String> armyTargets(boolean infected) {
@@ -533,6 +579,11 @@ public final class VivaConfig {
     public static double structuresDistanceStep() { return d(STRUCTURES_DISTANCE_STEP); }
     public static int structuresLandRadius() { return i(STRUCTURES_LAND_RADIUS); }
     public static int structuresFoundationDepth() { return i(STRUCTURES_FOUNDATION_DEPTH); }
+    public static int structuresLandGrid() { return i(STRUCTURES_LAND_GRID); }
+    public static double structuresIslandFactor() { return d(STRUCTURES_ISLAND_FACTOR); }
+    public static int structuresEdgeBlend() { return i(STRUCTURES_EDGE_BLEND); }
+    public static int structuresEdgeSlope() { return i(STRUCTURES_EDGE_SLOPE); }
+    public static int structuresEdgeInner() { return i(STRUCTURES_EDGE_INNER); }
     public static String structuresFoundationBlock() { return c(STRUCTURES_FOUNDATION_BLOCK); }
     public static int structuresClearAbove() { return i(STRUCTURES_CLEAR_ABOVE); }
     public static boolean structuresCrashSpawnRadiusZero() { return b(STRUCTURES_CRASH_SPAWN_RADIUS_ZERO); }

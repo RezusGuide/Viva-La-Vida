@@ -2,7 +2,6 @@ package dev.rezus.vivacore.army;
 
 import dev.rezus.vivacore.VivaConfig;
 import dev.rezus.vivacore.VivaCore;
-import java.util.HashSet;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -18,13 +17,11 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -51,8 +48,9 @@ public class OrionProjectile extends Projectile {
 
     private float damage;
     private float explosionPower;
-    private int pierceLeft;
-    private final Set<BlockPos> pierced = new HashSet<>();
+    private ShotTrace.Pierce pierce = new ShotTrace.Pierce(0);
+    /** Участок, в котором снаряд учтён в лимите ArmyLimits (null — не учтён). */
+    private String countedSector;
 
     public OrionProjectile(EntityType<? extends OrionProjectile> type, Level level) {
         super(type, level);
@@ -65,7 +63,7 @@ public class OrionProjectile extends Projectile {
         p.entityData.set(KIND, kind.ordinal());
         p.damage = damage;
         p.explosionPower = explosionPower;
-        p.pierceLeft = kind == Kind.PIERCING ? VivaConfig.armyPierceBlocks() : 0;
+        p.pierce = new ShotTrace.Pierce(kind == Kind.PIERCING ? VivaConfig.armyPierceBlocks() : 0);
         return p;
     }
 
@@ -78,7 +76,7 @@ public class OrionProjectile extends Projectile {
     }
 
     public Set<BlockPos> piercedBlocks() {
-        return Set.copyOf(pierced);
+        return Set.copyOf(pierce.pierced());
     }
 
     @Override
@@ -86,8 +84,20 @@ public class OrionProjectile extends Projectile {
         builder.define(KIND, 0);
     }
 
+    /** Замер (только dev-бенч): суммарное время тиков снарядов. */
+    public static long tickNanos;
+
     @Override
     public void tick() {
+        long t0 = Hitscan.STATS ? System.nanoTime() : 0;
+        try {
+            tickInner();
+        } finally {
+            if (Hitscan.STATS) tickNanos += System.nanoTime() - t0;
+        }
+    }
+
+    private void tickInner() {
         super.tick();
         Vec3 from = position();
         Vec3 velocity = getDeltaMovement();
@@ -116,35 +126,9 @@ public class OrionProjectile extends Projectile {
         }
     }
 
-    /**
-     * Блоки на пути from→to через level.clip — его подменяет Sable (clip_overwrite), поэтому снаряд видит и блоки
-     * кораблей. Сквозной снаряд после лёгкого блока (pierceable, не blast_proof) повторяет луч чуть дальше, пока есть
-     * запас; уже пробитый блок не считается дважды.
-     * @return первый блок, который останавливает снаряд, или null
-     */
+    /** Блоки на пути from→to ({@link ShotTrace}: видит корабли Sable, точка — в мире). @return первый стоп-блок или null */
     BlockHitResult traceBlocks(Level level, Vec3 from, Vec3 to) {
-        Vec3 dir = to.subtract(from);
-        double len = dir.length();
-        if (len < 1e-6) return null;
-        Vec3 step = dir.scale(0.3 / len);
-        Vec3 cur = from;
-        for (int i = 0; i < 32; i++) {
-            BlockHitResult hit = level.clip(new ClipContext(cur, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
-            if (hit.getType() == HitResult.Type.MISS) return null;
-            BlockPos pos = hit.getBlockPos();
-            if (kind() == Kind.PIERCING) {
-                BlockState state = level.getBlockState(pos);
-                boolean light = !state.is(BLAST_PROOF) && state.is(PIERCEABLE);
-                if (light && (pierced.contains(pos) || pierceLeft > 0)) {
-                    if (pierced.add(pos.immutable())) pierceLeft--;
-                    cur = hit.getLocation().add(step);
-                    if (cur.subtract(from).lengthSqr() >= len * len) return null;
-                    continue;
-                }
-            }
-            return hit;
-        }
-        return null;
+        return ShotTrace.blocks(level, this, from, to, kind() == Kind.PIERCING ? pierce : null);
     }
 
     @Override
@@ -166,7 +150,11 @@ public class OrionProjectile extends Projectile {
         discard();
     }
 
+    /** Для тестов: блок, о который снаряд остановился (для кораблей Sable — позиция в участке). */
+    BlockPos lastBlockHit;
+
     private void hitBlock(BlockHitResult hit) {
+        lastBlockHit = hit.getBlockPos().immutable();
         setPos(hit.getLocation());
         if (kind() == Kind.SHELL || kind() == Kind.ROCKET) {
             explode(hit.getLocation());
@@ -176,10 +164,53 @@ public class OrionProjectile extends Projectile {
         discard();
     }
 
+    /** Для тестов: взрыв этого снаряда в точке (с лимитом за тик). */
+    void explodeAt(Vec3 at) {
+        explode(at);
+    }
+
     private void explode(Vec3 at) {
+        if (level() instanceof ServerLevel server && !ArmyLimits.tryExplosion(server)) {
+            damageOnly(server, at);
+            return;
+        }
         boolean griefing = ArmyRules.griefing(level());
         level().explode(this, damageSources().explosion(this, getOwner()), null, at.x, at.y, at.z, explosionPower, false,
                 griefing ? Level.ExplosionInteraction.TNT : Level.ExplosionInteraction.NONE);
+    }
+
+    /**
+     * Взрыв сверх лимита за тик (ArmyLimits): только урон сущностям в радиусе взрыва (2 × мощность), по ванильной
+     * формуле без лучей видимости — без блоков, частиц, звука и отталкивания.
+     */
+    private void damageOnly(ServerLevel server, Vec3 at) {
+        double radius = explosionPower * 2.0;
+        if (radius <= 0) return;
+        var source = damageSources().explosion(this, getOwner());
+        for (LivingEntity e : server.getEntitiesOfClass(LivingEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(radius))) {
+            double dist = Math.sqrt(e.distanceToSqr(at)) / radius;
+            if (dist > 1.0) continue;
+            double impact = 1.0 - dist;
+            e.hurt(source, (float) ((impact * impact + impact) / 2.0 * 7.0 * radius + 1.0));
+        }
+    }
+
+    @Override
+    public void onAddedToLevel() {
+        super.onAddedToLevel();
+        if (level() instanceof ServerLevel server && countedSector == null) {
+            countedSector = ArmyLimits.sector(server, position());
+            ArmyLimits.projectileAdded(countedSector);
+        }
+    }
+
+    @Override
+    public void onRemovedFromLevel() {
+        super.onRemovedFromLevel();
+        if (countedSector != null) {
+            ArmyLimits.projectileRemoved(countedSector);
+            countedSector = null;
+        }
     }
 
     private void sparks(Vec3 at, int count) {
@@ -194,7 +225,7 @@ public class OrionProjectile extends Projectile {
         tag.putInt("Kind", entityData.get(KIND));
         tag.putFloat("Damage", damage);
         tag.putFloat("ExplosionPower", explosionPower);
-        tag.putInt("PierceLeft", pierceLeft);
+        tag.putInt("PierceLeft", pierce.left);
     }
 
     @Override
@@ -203,7 +234,7 @@ public class OrionProjectile extends Projectile {
         entityData.set(KIND, tag.getInt("Kind"));
         damage = tag.getFloat("Damage");
         explosionPower = tag.getFloat("ExplosionPower");
-        pierceLeft = tag.getInt("PierceLeft");
+        pierce = new ShotTrace.Pierce(tag.getInt("PierceLeft"));
     }
 
     @Override

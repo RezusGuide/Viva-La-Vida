@@ -45,6 +45,7 @@ public final class DevBench {
 
     public static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("devbench").requires(s -> s.hasPermission(4))
+                .then(dev.rezus.vivacore.army.CombatBench.build())
                 .then(Commands.argument("warmup", IntegerArgumentType.integer(0, 3600))
                         .then(Commands.argument("measure", IntegerArgumentType.integer(5, 3600)).executes(ctx -> {
                             start(ctx.getSource().getServer(), IntegerArgumentType.getInteger(ctx, "warmup"),

@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -141,7 +142,10 @@ public final class Structures {
         if (d.planned()) return;
         ServerLevel level = server.overworld();
         BlockPos spawn = level.getSharedSpawnPos();
-        SitePlanner.Plan plan = SitePlanner.plan(level.getSeed(), spawn, params(), SitePlanner.biomeLand(level));
+        long t0 = System.nanoTime();
+        SitePlanner.Plan plan = SitePlanner.plan(level.getSeed(), spawn, params(), templateHalf(level, SiteType.LAB),
+                templateHalf(level, SiteType.NEXUS), SitePlanner.biomeLand(level));
+        VivaCore.LOGGER.info("Viva Core: поиск места построек — {} мс", (System.nanoTime() - t0) / 1_000_000);
         if (d.entry(SiteType.CRASH).planned() == null) d.setPlanned(SiteType.CRASH, new BlockPos(spawn.getX(), 0, spawn.getZ()));
         d.setPlan(plan.angle(), plan.lab(), plan.nexus());
         VivaCore.LOGGER.info("Viva Core: постройки — угол {}°, лаборатория {} (суша {}), Нексус {} (суша {})",
@@ -151,7 +155,14 @@ public final class Structures {
 
     public static SitePlanner.Params params() {
         return new SitePlanner.Params(VivaConfig.structuresDistance(), VivaConfig.structuresAngleShift(), VivaConfig.structuresAngleStep(),
-                VivaConfig.structuresDistanceShift(), VivaConfig.structuresDistanceStep(), VivaConfig.structuresLandRadius());
+                VivaConfig.structuresDistanceShift(), VivaConfig.structuresDistanceStep(), VivaConfig.structuresLandRadius(),
+                VivaConfig.structuresLandGrid(), VivaConfig.structuresIslandFactor());
+    }
+
+    /** Половина большей стороны шаблона постройки (для поиска места); нет шаблона — 0. */
+    static int templateHalf(ServerLevel level, SiteType type) {
+        return level.getStructureManager().get(type.template())
+                .map(t -> Math.max(t.getSize().getX(), t.getSize().getZ()) / 2).orElse(0);
     }
 
     private static boolean auto(MinecraftServer server) {
@@ -246,6 +257,13 @@ public final class Structures {
 
     private record Placed(BoundingBox box, @Nullable BlockPos core, @Nullable BlockPos spawn) {}
 
+    /** Сейчас ставится шаблон постройки (только поток сервера). */
+    private static boolean building;
+
+    public static boolean isBuilding() {
+        return building;
+    }
+
     @Nullable
     private static Placed build(ServerLevel level, SiteType type, BlockPos center, Rotation rotation) {
         StructureTemplate template = level.getStructureManager().get(type.template()).orElse(null);
@@ -269,12 +287,18 @@ public final class Structures {
         BoundingBox box = template.getBoundingBox(settings, origin);
 
         java.util.List<BlockPos> terrainFluids = fluidsIn(level, box);
-        template.placeInWorld(level, origin, origin, settings, level.random, Block.UPDATE_CLIENTS);
+        building = true; // огонь шаблона (огонь душ Нексуса) не убирается защитой
+        try {
+            template.placeInWorld(level, origin, origin, settings, level.random, Block.UPDATE_CLIENTS);
+        } finally {
+            building = false;
+        }
         removeLeftoverMarkers(level, box);
         drainTerrainFluids(level, terrainFluids, surface);
         sealFluidRing(level, box);
         foundation(level, box);
         clearAbove(level, box);
+        blendEdges(level, box, surface);
 
         BlockPos core = null;
         BlockPos spawn = null;
@@ -374,9 +398,12 @@ public final class Structures {
         }
     }
 
-    /** Фундамент: под нижним слоем постройки пустоты (обрыв, пещера, вода) засыпаются до грунта, не глубже конфига. */
+    /**
+     * Фундамент (задача 9): под нижним слоем постройки пустоты (обрыв, склон, пещера, вода) засыпаются столбами до
+     * земли, не глубже structures.foundationMaxDepth. Блоки — по местности под столбом ({@link #pillarBlocks}):
+     * у самой земли (3 блока) — то, что под ней (земля под травой, песчаник под песком), выше — камень этой местности.
+     */
     private static void foundation(ServerLevel level, BoundingBox box) {
-        BlockState fill = foundationBlock();
         int depth = VivaConfig.structuresFoundationDepth();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int x = box.minX(); x <= box.maxX(); x++) {
@@ -384,13 +411,163 @@ public final class Structures {
                 p.set(x, box.minY(), z);
                 BlockState bottom = level.getBlockState(p);
                 if (bottom.isAir() || !bottom.getFluidState().isEmpty()) continue;
-                for (int y = box.minY() - 1; y >= box.minY() - depth && y > level.getMinBuildHeight(); y--) {
+                int floor = Math.max(box.minY() - depth, level.getMinBuildHeight() + 1);
+                int ground = floor - 1;
+                BlockState groundState = foundationBlock();
+                for (int y = box.minY() - 1; y >= floor; y--) {
                     p.set(x, y, z);
                     BlockState s = level.getBlockState(p);
-                    if (!s.isAir() && s.getFluidState().isEmpty() && !s.canBeReplaced()) break;
-                    level.setBlock(p, fill, Block.UPDATE_CLIENTS);
+                    if (solidGround(s)) {
+                        ground = y;
+                        groundState = s;
+                        break;
+                    }
+                }
+                BlockState[] fill = pillarBlocks(groundState);
+                for (int y = box.minY() - 1; y > ground; y--) {
+                    p.set(x, y, z);
+                    level.setBlock(p, y - ground <= 3 ? fill[0] : fill[1], Block.UPDATE_CLIENTS);
                 }
             }
+        }
+    }
+
+    /** Земля, на которую можно опереть столб: твёрдый блок без жидкости, не листва, не растение, не бревно. */
+    static boolean solidGround(BlockState s) {
+        return !s.isAir() && s.getFluidState().isEmpty() && !s.canBeReplaced() && !s.is(BlockTags.LEAVES) && !s.is(BlockTags.LOGS)
+                && s.blocksMotion();
+    }
+
+    /**
+     * Блоки столба по земле под ним: [у земли, выше]. Трава/земля → земля, выше камень; песок → песчаник (красный —
+     * красный); камень, глубинный сланец, терракота и прочие природные камни — тот же блок; иначе — structures.foundationBlock.
+     */
+    static BlockState[] pillarBlocks(BlockState ground) {
+        BlockState stone = foundationBlock();
+        if (ground.is(Blocks.RED_SAND)) return new BlockState[] {Blocks.RED_SANDSTONE.defaultBlockState(), Blocks.RED_SANDSTONE.defaultBlockState()};
+        if (ground.is(BlockTags.SAND)) return new BlockState[] {Blocks.SANDSTONE.defaultBlockState(), Blocks.SANDSTONE.defaultBlockState()};
+        if (ground.is(BlockTags.DIRT) || ground.is(Blocks.SNOW_BLOCK)) return new BlockState[] {Blocks.DIRT.defaultBlockState(), stone};
+        if (ground.is(Blocks.GRAVEL)) return new BlockState[] {Blocks.ANDESITE.defaultBlockState(), stone};
+        if (ground.is(BlockTags.BASE_STONE_OVERWORLD) || ground.is(BlockTags.TERRACOTTA) || ground.is(Blocks.SANDSTONE)
+                || ground.is(Blocks.RED_SANDSTONE) || ground.is(Blocks.CALCITE)) {
+            BlockState same = ground.getBlock().defaultBlockState();
+            return new BlockState[] {same, same};
+        }
+        return new BlockState[] {stone, stone};
+    }
+
+    /**
+     * Края (задача 9): квадратная плоская площадка вокруг постройки сводится к местности. В полосе structures.edgeBlend
+     * снаружи коробки верх земли плавно (smoothstep) идёт от уровня земли постройки к высоте местности, склон не круче
+     * structures.edgeSlope на блок от края, с неровностью ±1 (шум по координатам — край не прямой). Внутри коробки на
+     * structures.edgeInner блоков природная земля (не блоки постройки) тоже чуть сдвигается к местности.
+     * Шаблон не перестраивается: меняются только столбцы природной земли.
+     */
+    static void blendEdges(ServerLevel level, BoundingBox box, int surface) {
+        int w = VivaConfig.structuresEdgeBlend();
+        if (w <= 0) return;
+        int slope = VivaConfig.structuresEdgeSlope();
+        int inner = VivaConfig.structuresEdgeInner();
+        int base = surface - 1; // верх земли постройки (метка vivacore:ground — уровень, на котором стоят)
+        long seed = level.getSeed() ^ 0x45444745L;
+        for (int x = box.minX() - w; x <= box.maxX() + w; x++) {
+            for (int z = box.minZ() - w; z <= box.maxZ() + w; z++) {
+                int dx = Math.max(Math.max(box.minX() - x, x - box.maxX()), 0);
+                int dz = Math.max(Math.max(box.minZ() - z, z - box.maxZ()), 0);
+                double d = Math.sqrt(dx * dx + dz * dz);
+                boolean outside = dx > 0 || dz > 0;
+                if (outside && d > w) continue;
+                if (!outside) {
+                    int din = Math.min(Math.min(x - box.minX(), box.maxX() - x), Math.min(z - box.minZ(), box.maxZ() - z));
+                    if (din >= inner) continue;
+                }
+                int top = groundTop(level, x, z, base + w * slope + 8);
+                if (top == Integer.MIN_VALUE) continue; // вода, дерево — не трогаем
+                int target;
+                if (outside) {
+                    // уровень у края: верх природной земли в ближайшем столбце коробки (у шаблона там пусто — местность,
+                    // как у краёв Нексуса и отсека), иначе (край — блоки постройки: стены лаборатории) — уровень земли
+                    int edgeTop = groundTop(level, Mth.clamp(x, box.minX(), box.maxX()), Mth.clamp(z, box.minZ(), box.maxZ()),
+                            box.maxY() + 1);
+                    int b0 = edgeTop == Integer.MIN_VALUE ? base : edgeTop;
+                    double t = d / (w + 1.0);
+                    double s = t * t * (3 - 2 * t);
+                    double h = b0 + (top - b0) * s + noise(seed, x, z) * 4 * t * (1 - t);
+                    int lim = (int) Math.ceil(d * slope);
+                    target = Mth.clamp((int) Math.round(h), b0 - lim, b0 + lim);
+                } else {
+                    // внутренняя кайма: природная земля постройки на 1 блок к местности за полосой (по нормали к краю),
+                    // не во всех столбцах — край неровный
+                    if (Math.abs(noise(seed + 7, x, z)) < 0.35) continue;
+                    int fromMinX = x - box.minX(), fromMaxX = box.maxX() - x, fromMinZ = z - box.minZ(), fromMaxZ = box.maxZ() - z;
+                    int m = Math.min(Math.min(fromMinX, fromMaxX), Math.min(fromMinZ, fromMaxZ));
+                    int ex = m == fromMinX ? box.minX() - w - 1 : m == fromMaxX ? box.maxX() + w + 1 : x;
+                    int ez = m == fromMinX || m == fromMaxX ? z : m == fromMinZ ? box.minZ() - w - 1 : box.maxZ() + w + 1;
+                    int far = groundTop(level, ex, ez, base + w * slope + 8);
+                    if (far == Integer.MIN_VALUE || Math.abs(far - base) < 2) continue;
+                    target = top + Integer.signum(far - base);
+                }
+                setGroundTop(level, x, z, top, target);
+            }
+        }
+    }
+
+    /** Шум [−1, 1] по координатам (без состояния; соседние столбцы — разные). */
+    private static double noise(long seed, int x, int z) {
+        long h = seed + x * 0x9E3779B97F4A7C15L + z * 0xC2B2AE3D27D4EB4FL;
+        h = (h ^ (h >>> 33)) * 0xFF51AFD7ED558CCDL;
+        h ^= h >>> 29;
+        return ((h >>> 11) * 0x1.0p-53) * 2 - 1;
+    }
+
+    /**
+     * Верх природной земли в столбце (ищется сверху от maxY): первый блок {@link #solidGround}, природный
+     * ({@link #naturalGround}). Над ним вода или бревно, или уже в maxY твёрдо (гора выше зоны) — Integer.MIN_VALUE
+     * (такой столбец не трогаем).
+     */
+    private static int groundTop(ServerLevel level, int x, int z, int maxY) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, Math.min(maxY, level.getMaxBuildHeight() - 1), z);
+        // местность выше зоны поиска (склон горы) — не трогаем: срез оставил бы в склоне щель с нависанием
+        if (solidGround(level.getBlockState(p))) return Integer.MIN_VALUE;
+        for (; p.getY() > level.getMinBuildHeight(); p.move(0, -1, 0)) {
+            BlockState s = level.getBlockState(p);
+            if (s.isAir()) continue;
+            if (!s.getFluidState().isEmpty() || s.is(BlockTags.LOGS)) return Integer.MIN_VALUE;
+            if (s.is(BlockTags.LEAVES) || s.canBeReplaced() || !s.blocksMotion()) continue;
+            return naturalGround(s) ? p.getY() : Integer.MIN_VALUE;
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /** Природная земля (её можно срезать и насыпать): трава, земля, песок, гравий, снег, природный камень, терракота. */
+    static boolean naturalGround(BlockState s) {
+        return s.is(BlockTags.DIRT) || s.is(BlockTags.SAND) || s.is(Blocks.GRAVEL) || s.is(Blocks.SNOW_BLOCK)
+                || s.is(BlockTags.BASE_STONE_OVERWORLD) || s.is(BlockTags.TERRACOTTA) || s.is(Blocks.SANDSTONE)
+                || s.is(Blocks.RED_SANDSTONE) || s.is(Blocks.CALCITE) || s.is(Blocks.COARSE_DIRT) || s.is(Blocks.SOUL_SOIL)
+                || s.is(Blocks.BLACKSTONE) || s.is(Blocks.BASALT);
+    }
+
+    /** Поднять или срезать верх земли столбца с top до target: верхний блок — как был (трава, песок), под ним — {@link #pillarBlocks}. */
+    private static void setGroundTop(ServerLevel level, int x, int z, int top, int target) {
+        if (target == top) return;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, top, z);
+        BlockState surfaceBlock = level.getBlockState(p);
+        BlockState[] fill = pillarBlocks(surfaceBlock);
+        BlockState under = fill[0];
+        if (target > top) {
+            for (int y = top; y < target; y++) level.setBlock(p.setY(y), under, Block.UPDATE_CLIENTS);
+            level.setBlock(p.setY(target), surfaceBlock, Block.UPDATE_CLIENTS);
+            // трава и цветы, что стояли на старом верху, — на новый
+            BlockState plant = level.getBlockState(p.setY(target + 1));
+            if (!plant.isAir() && plant.canBeReplaced()) level.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+        } else {
+            // срезать: всё выше target (земля и растения над ней), верх — прежний верхний блок
+            for (int y = top + 1; y >= target + 1; y--) {
+                BlockState s = level.getBlockState(p.setY(y));
+                if (y == top + 1 && !(s.isAir() || s.canBeReplaced())) continue;
+                level.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+            }
+            level.setBlock(p.setY(target), surfaceBlock, Block.UPDATE_CLIENTS);
         }
     }
 
