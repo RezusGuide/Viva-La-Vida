@@ -106,7 +106,9 @@
   из консоли с pipe — команда приходит без мира, генератор берёт overworld). Код размещения знает только имя файла
   и метки (structure_block, режим DATA, поле metadata): `vivacore:ground` (уровень земли), `core`, `player_spawn`,
   `guardian`, `guard`. Метки в мир не ставятся (BlockIgnoreProcessor). После шаблона — засыпка пустот снизу
-  (`foundationDepth`) и расчистка нависающего грунта сверху (`clearAboveDepth`).
+  (`foundationDepth`) и расчистка нависающего грунта сверху (`clearAboveDepth`). Вода местности (озеро рядом —
+  планировщик обходит только океан/реку/пляж по биомам) убирается из коробки, кольцо в 1 блок вокруг коробки
+  засыпается — иначе вода затекает в постройку (найдено на скриншоте Нексуса у океана, тест `waterDoesNotFlood`).
 - Когда ставятся: отсек — `ServerStartedEvent` (чанки спавна загружены), спавн мира → метка player_spawn, spawnRadius 0
   (иначе спавн уезжает на крышу: `adjustSpawnLocation` берёт верх карты высот — метка стоит под дырой в крыше).
   Лаборатория и Нексус — раз в секунду `hasChunk` чанка центра; загрузился → ставим (флаг в SavedData). В GameTestServer
@@ -123,13 +125,15 @@
   `BlockMovementChecks.registerMovementAllowedCheck` (`CreateProtection`); разрушение — миксины (событие у Create не
   шлётся: `BlockHelper.destroyBlock` зовёт `destroyBlockAs` с player = null, без BreakEvent). Ящики припасов — тег
   `vivacore:protection_exempt`. Оператор (уровень `protection.opPermissionLevel`) в творческом — может всё.
-- `runGameTestServer` и `runServer` работают с одной папкой `run/world`: после GameTest в `run/world/data` не осталось
-  `vivacore_*.dat` (SavedData мода), следующий runServer начал мир «с нуля» (отсек поставлен ещё раз). Для dev-мира
-  это неважно, но не держи в `run/world` ничего ценного.
+- `runGameTestServer` и `runServer` работают с одной папкой `run/world` (тот же сид; площадки тестов ставятся в
+  случайном далёком месте этого мира). Тесты задачи 8 в конце сбрасывают постройки (`Structures.resetForTests`), стадию
+  и флаг ОРИОНа — и это сохраняется в `run/world`: после runGameTestServer следующий runServer считает, что построек
+  нет, и ставит отсек заново. Для dev-мира неважно, но не держи в `run/world` ничего ценного.
 - Dev-замер нагрузки зон: `/viva devbench <прогрев> <замер>` (только dev) — 5 ботов (`TestPlayers.detached`,
   добавлены в мир: вокруг них грузятся чанки и идёт естественный спавн), стадия 4, армия вкл, ночь; итоги в лог
   «Viva Core bench: …», сервер останавливается сам. `-PvivaDevShots=100,180,…` — свои тики кадров dev-скриншотов;
   при телепорте сценой (прыжок > 4 блоков) хук перехватывает поворот камеры заново.
+  В сценах скриншотов давай ночное видение без частиц: `effect give @s minecraft:night_vision infinite 0 true`.
 - Свет блоков в 1.21.1 кешируется в BlockState при регистрации (до загрузки конфига): уровень из конфига — через
   позиционный `getLightEmission(state, level, pos)` (NeoForge), статический `lightLevel` — значение по умолчанию.
 - Жива (`zhiva/`): состояние — attachment `vivacore:zhiva` (IMPLANTED → REMOVED → REVEALED, copyOnDeath, синхронизация

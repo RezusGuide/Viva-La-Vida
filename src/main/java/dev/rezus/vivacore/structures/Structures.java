@@ -23,6 +23,7 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -267,8 +268,11 @@ public final class Structures {
         BlockPos origin = new BlockPos(ox, surface - groundY, oz);
         BoundingBox box = template.getBoundingBox(settings, origin);
 
+        java.util.List<BlockPos> terrainFluids = fluidsIn(level, box);
         template.placeInWorld(level, origin, origin, settings, level.random, Block.UPDATE_CLIENTS);
         removeLeftoverMarkers(level, box);
+        drainTerrainFluids(level, terrainFluids, surface);
+        sealFluidRing(level, box);
         foundation(level, box);
         clearAbove(level, box);
 
@@ -329,6 +333,44 @@ public final class Structures {
     private static void removeLeftoverMarkers(ServerLevel level, BoundingBox box) {
         for (BlockPos p : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
             if (level.getBlockState(p).is(Blocks.STRUCTURE_BLOCK)) level.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /** Жидкость местности в коробке до постройки (озеро, река, болото) — позиции чистых блоков жидкости. */
+    private static java.util.List<BlockPos> fluidsIn(ServerLevel level, BoundingBox box) {
+        java.util.List<BlockPos> out = new java.util.ArrayList<>();
+        for (BlockPos p : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+            if (level.getBlockState(p).getBlock() instanceof LiquidBlock) out.add(p.immutable());
+        }
+        return out;
+    }
+
+    /**
+     * Вода местности, оставшаяся в коробке там, где у шаблона пусто (structure_void), иначе зальёт постройку:
+     * ниже уровня земли — засыпка, выше — воздух. Вода, которую поставил сам шаблон, не трогается, если только местность
+     * не была водой ровно в той же точке.
+     */
+    static void drainTerrainFluids(ServerLevel level, java.util.List<BlockPos> terrainFluids, int surface) {
+        BlockState fill = foundationBlock();
+        for (BlockPos p : terrainFluids) {
+            if (!(level.getBlockState(p).getBlock() instanceof LiquidBlock)) continue;
+            level.setBlock(p, p.getY() < surface ? fill : Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /** Кольцо в один блок вокруг коробки (по высоте коробки): жидкость → засыпка, чтобы снаружи не затекало внутрь. */
+    static void sealFluidRing(ServerLevel level, BoundingBox box) {
+        BlockState fill = foundationBlock();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int y = box.minY(); y <= box.maxY(); y++) {
+            for (int x = box.minX() - 1; x <= box.maxX() + 1; x++) {
+                for (int z = box.minZ() - 1; z <= box.maxZ() + 1; z++) {
+                    boolean ring = x == box.minX() - 1 || x == box.maxX() + 1 || z == box.minZ() - 1 || z == box.maxZ() + 1;
+                    if (!ring) continue;
+                    p.set(x, y, z);
+                    if (level.getBlockState(p).getBlock() instanceof LiquidBlock) level.setBlock(p, fill, Block.UPDATE_CLIENTS);
+                }
+            }
         }
     }
 

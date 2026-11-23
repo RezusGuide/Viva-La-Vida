@@ -134,6 +134,34 @@ public final class SiteGameTests {
         h.succeed();
     }
 
+    /** Постройка у воды: озеро вокруг — вода не остаётся в коробке и не затекает потом (найдено на скриншоте у озера). */
+    @GameTest(template = "empty", batch = "sites_water", timeoutTicks = 200)
+    public static void waterDoesNotFlood(GameTestHelper h) {
+        MinecraftServer server = h.getLevel().getServer();
+        ServerLevel level = server.overworld();
+        Structures.resetForTests(server);
+        BlockPos c = new BlockPos(33000, 0, 30000);
+        for (int cx = (c.getX() - 32) >> 4; cx <= (c.getX() + 32) >> 4; cx++) {
+            for (int cz = (c.getZ() - 32) >> 4; cz <= (c.getZ() + 32) >> 4; cz++) level.getChunk(cx, cz);
+        }
+        int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, c.getX(), c.getZ());
+        // озеро глубиной 2 на 65×65 вокруг точки
+        for (BlockPos p : BlockPos.betweenClosed(c.getX() - 32, top, c.getZ() - 32, c.getX() + 32, top + 1, c.getZ() + 32)) {
+            level.setBlock(p, Blocks.WATER.defaultBlockState(), 2);
+        }
+        BoundingBox box = Structures.placeAt(level, SiteType.NEXUS, c, Rotation.NONE);
+        h.assertTrue(box != null, "Нексус поставлен");
+        h.runAfterDelay(60, () -> {
+            int inside = 0;
+            for (BlockPos p : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+                if (!level.getFluidState(p).isEmpty()) inside++;
+            }
+            Structures.resetForTests(server);
+            h.assertTrue(inside == 0, "через 3 с воды в коробке нет, есть блоков с водой: " + inside);
+            h.succeed();
+        });
+    }
+
     @GameTest(template = "empty", batch = "sites_autoplace", timeoutTicks = 200)
     public static void placedWhenChunkLoads(GameTestHelper h) {
         MinecraftServer server = h.getLevel().getServer();
