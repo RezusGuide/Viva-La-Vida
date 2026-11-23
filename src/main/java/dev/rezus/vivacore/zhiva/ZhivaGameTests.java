@@ -186,11 +186,10 @@ public final class ZhivaGameTests {
         p.startRiding(boat, true);
         h.assertTrue(!Zhiva.data(p).foreignImplant(), "посадка в лодку не открывает квест");
 
-        // команды есть по-русски и по-английски
+        // команды — только английские (задача 11)
         CommandDispatcher<CommandSourceStack> d = p.server.getCommands().getDispatcher();
         CommandSourceStack src = p.server.createCommandSourceStack();
-        List<String> ru = d.getCompletionSuggestions(d.parse("viva жива ", src)).join().getList().stream().map(Suggestion::getText).toList();
-        h.assertTrue(ru.containsAll(List.of("статус", "состояние", "кушетка")), "подкоманды жива: " + ru);
+        h.assertTrue(d.parse("viva жива status", src).getReader().canRead(), "русской «viva жива» больше нет");
         List<String> en = d.getCompletionSuggestions(d.parse("viva zhiva ", src)).join().getList().stream().map(Suggestion::getText).toList();
         h.assertTrue(en.containsAll(List.of("status", "state", "couch")), "подкоманды zhiva: " + en);
         h.succeed();

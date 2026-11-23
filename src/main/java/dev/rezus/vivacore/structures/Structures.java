@@ -459,7 +459,7 @@ public final class Structures {
     /**
      * Края (задача 9): квадратная плоская площадка вокруг постройки сводится к местности. В полосе structures.edgeBlend
      * снаружи коробки верх земли плавно (smoothstep) идёт от уровня земли постройки к высоте местности, склон не круче
-     * structures.edgeSlope на блок от края, с неровностью ±1 (шум по координатам — край не прямой). Внутри коробки на
+     * structures.edgeSlope на блок от края, с неровностью до ±0,4 (шум по координатам — край не прямой). Внутри коробки на
      * structures.edgeInner блоков природная земля (не блоки постройки) тоже чуть сдвигается к местности.
      * Шаблон не перестраивается: меняются только столбцы природной земли.
      */
@@ -492,7 +492,8 @@ public final class Structures {
                     int b0 = edgeTop == Integer.MIN_VALUE ? base : edgeTop;
                     double t = d / (w + 1.0);
                     double s = t * t * (3 - 2 * t);
-                    double h = b0 + (top - b0) * s + noise(seed, x, z) * 4 * t * (1 - t);
+                    // неровность до ±0,4: с крутизной smoothstep (~2,1 на блок при обрыве 10) шаг после округления ≤ 3
+                    double h = b0 + (top - b0) * s + noise(seed, x, z) * 1.6 * t * (1 - t);
                     int lim = (int) Math.ceil(d * slope);
                     target = Mth.clamp((int) Math.round(h), b0 - lim, b0 + lim);
                 } else {

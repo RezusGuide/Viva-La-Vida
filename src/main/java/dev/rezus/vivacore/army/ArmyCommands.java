@@ -11,8 +11,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 
 /**
- * Команды оператора для армии (тесты 24 и 27): /viva армия вкл | выкл | тревога &lt;0–4&gt; | статус
- * (EN: /viva army on | off | alarm &lt;0–4&gt; | status). «вкл/выкл» меняют конфиг army.enabled (сохраняется в файл).
+ * Команды оператора для армии (тесты 24 и 27): /viva army on | off | alarm &lt;0–4&gt; | status.
+ * on/off меняют конфиг army.enabled (сохраняется в файл).
  * Тревога и статус — для участка, где стоит выполняющий команду (у консоли — точка спавна мира).
  */
 public final class ArmyCommands {
@@ -20,7 +20,6 @@ public final class ArmyCommands {
 
     public record Words(String army, String on, String off, String alarm, String status, String level) {}
 
-    public static final Words RU = new Words("армия", "вкл", "выкл", "тревога", "статус", "уровень");
     public static final Words EN = new Words("army", "on", "off", "alarm", "status", "level");
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(Words w) {
@@ -32,14 +31,15 @@ public final class ArmyCommands {
                         .then(Commands.argument(w.level(), IntegerArgumentType.integer(0, 4)).executes(ctx -> {
                             int level = IntegerArgumentType.getInteger(ctx, w.level());
                             CommandSourceStack src = ctx.getSource();
-                            Alarm.set(src.getLevel(), BlockPos.containing(src.getPosition()), level);
+                            Alarm.set(src.getLevel() != null ? src.getLevel() : src.getServer().overworld(), BlockPos.containing(src.getPosition()), level);
                             src.sendSuccess(() -> Component.translatable("vivacore.army.command.alarm_set",
-                                    Alarm.sector(src.getLevel(), BlockPos.containing(src.getPosition())), level), true);
+                                    Alarm.sector(src.getLevel() != null ? src.getLevel() : src.getServer().overworld(), BlockPos.containing(src.getPosition())), level), true);
                             return level;
                         })))
                 .then(Commands.literal(w.status()).executes(ctx -> {
                     CommandSourceStack src = ctx.getSource();
-                    ServerLevel level = src.getLevel();
+                    // команда из консоли, прочитанная до загрузки мира, приходит без мира — берём overworld
+                    ServerLevel level = src.getLevel() != null ? src.getLevel() : src.getServer().overworld();
                     BlockPos pos = BlockPos.containing(src.getPosition());
                     float alarm = Alarm.get(level, pos);
                     int machines = Waves.countMachines(src.getServer());

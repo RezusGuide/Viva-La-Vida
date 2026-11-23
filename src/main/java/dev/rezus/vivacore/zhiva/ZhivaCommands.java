@@ -20,7 +20,6 @@ public final class ZhivaCommands {
 
     public record Words(String zhiva, String status, String state, String couch, String player) {}
 
-    public static final Words RU = new Words("жива", "статус", "состояние", "кушетка", "ник");
     public static final Words EN = new Words("zhiva", "status", "state", "couch", "player");
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(Words w) {

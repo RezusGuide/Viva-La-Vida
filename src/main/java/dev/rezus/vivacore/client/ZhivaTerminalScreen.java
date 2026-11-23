@@ -39,7 +39,7 @@ public class ZhivaTerminalScreen extends Screen {
     protected void init() {
         clearWidgets();
         int cx = width / 2;
-        int y = height / 2 + 30;
+        int y = height / 2 + 50; // задача 11: под текст до 8 строк (страницы сюжета — 6–7 строк)
 
         if (showStory) {
             addRenderableWidget(Button.builder(Component.translatable("vivacore.zhiva.terminal.prev"), b -> turn(-1))

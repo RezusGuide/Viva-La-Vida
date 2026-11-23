@@ -16,9 +16,9 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.neoforged.fml.loading.FMLEnvironment;
 
 /**
- * Команды оператора (тест 31): /viva постройки статус | поставить &lt;lab|nexus|crash&gt; [здесь] | тп &lt;lab|nexus|crash&gt;
- * (EN: /viva structures status | place &lt;…&gt; [here] | tp &lt;…&gt;) и /viva нексус уничтожить | восстановить
- * (EN: /viva nexus destroy | restore). В dev-сборке ещё «собрать &lt;…&gt;» — генератор шаблонов-черновиков.
+ * Команды оператора (тест 31): /viva sites status | place &lt;lab|nexus|crash&gt; [here] | tp &lt;lab|nexus|crash&gt;
+ * и /viva nexus destroy | restore. В dev-сборке ещё «build &lt;…&gt;» — генератор шаблонов-черновиков.
+ * Задача 11: только английские слова, корень sites (было structures и русские псевдонимы).
  */
 public final class SiteCommands {
     private SiteCommands() {}
@@ -26,9 +26,7 @@ public final class SiteCommands {
     public record Words(String root, String status, String place, String here, String tp, String build,
                         String nexus, String destroy, String restore) {}
 
-    public static final Words RU = new Words("постройки", "статус", "поставить", "здесь", "тп", "собрать",
-            "нексус", "уничтожить", "восстановить");
-    public static final Words EN = new Words("structures", "status", "place", "here", "tp", "build",
+    public static final Words EN = new Words("sites", "status", "place", "here", "tp", "build",
             "nexus", "destroy", "restore");
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(Words w) {

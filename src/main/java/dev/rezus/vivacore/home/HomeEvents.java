@@ -7,7 +7,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 public final class HomeEvents {
     private HomeEvents() {}
 
-    /** Запоминаем ник каждого зашедшего игрока — для «/viva дом список» (кто без дома). */
+    /** Запоминаем ник каждого зашедшего игрока — для «/viva home list» (кто без дома). */
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             HomeData.get(player.server).rememberName(player.getUUID(), player.getGameProfile().getName());

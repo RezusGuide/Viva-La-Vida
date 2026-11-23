@@ -7,11 +7,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 
-/** /viva стадия [номер] (EN: /viva stage [n]) — временно, до AStages. */
+/** /viva stage [n] — временно, до AStages. */
 public final class StageCommands {
     private StageCommands() {}
 
-    public static final String RU = "стадия";
     public static final String EN = "stage";
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(String word) {

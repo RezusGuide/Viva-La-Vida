@@ -10,8 +10,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * Корневая команда /viva. Подкоманды модулей добавляются сюда.
  * <p>
- * Русские слова — основные (кириллица в Brigadier проверена тестом
- * {@code HomeGameTests#cyrillicCommands}), английские — псевдонимы для консоли и скриптов.
+ * Только английские слова (задача 11: русские псевдонимы убраны — в подсказках по Tab были оба набора, а русские
+ * неудобно набирать с переключением раскладки). Сообщения — на языке клиента через lang.
  */
 public final class VivaCommands {
     private VivaCommands() {}
@@ -24,21 +24,15 @@ public final class VivaCommands {
         if (!net.neoforged.fml.loading.FMLEnvironment.production) {
             // dev: замер нагрузки зон (тест 32) — в обычной сборке команды нет
             dispatcher.register(Commands.literal("viva").then(dev.rezus.vivacore.zones.DevBench.build()));
+            dispatcher.register(Commands.literal("viva").then(dev.rezus.vivacore.zones.DevBench.buildDoor()));
         }
         dispatcher.register(Commands.literal("viva")
-                .then(HomeCommands.build(HomeCommands.RU))
                 .then(HomeCommands.build(HomeCommands.EN))
-                .then(ZhivaCommands.build(ZhivaCommands.RU))
                 .then(ZhivaCommands.build(ZhivaCommands.EN))
-                .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.RU))
                 .then(dev.rezus.vivacore.orion.OrionCommands.build(dev.rezus.vivacore.orion.OrionCommands.EN))
-                .then(dev.rezus.vivacore.army.ArmyCommands.build(dev.rezus.vivacore.army.ArmyCommands.RU))
                 .then(dev.rezus.vivacore.army.ArmyCommands.build(dev.rezus.vivacore.army.ArmyCommands.EN))
-                .then(dev.rezus.vivacore.structures.SiteCommands.build(dev.rezus.vivacore.structures.SiteCommands.RU))
                 .then(dev.rezus.vivacore.structures.SiteCommands.build(dev.rezus.vivacore.structures.SiteCommands.EN))
-                .then(dev.rezus.vivacore.structures.SiteCommands.buildNexus(dev.rezus.vivacore.structures.SiteCommands.RU))
                 .then(dev.rezus.vivacore.structures.SiteCommands.buildNexus(dev.rezus.vivacore.structures.SiteCommands.EN))
-                .then(dev.rezus.vivacore.stage.StageCommands.build(dev.rezus.vivacore.stage.StageCommands.RU))
                 .then(dev.rezus.vivacore.stage.StageCommands.build(dev.rezus.vivacore.stage.StageCommands.EN)));
     }
 }

@@ -46,11 +46,26 @@ public final class DevBench {
     public static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("devbench").requires(s -> s.hasPermission(4))
                 .then(dev.rezus.vivacore.army.CombatBench.build())
+
                 .then(Commands.argument("warmup", IntegerArgumentType.integer(0, 3600))
                         .then(Commands.argument("measure", IntegerArgumentType.integer(5, 3600)).executes(ctx -> {
                             start(ctx.getSource().getServer(), IntegerArgumentType.getInteger(ctx, "warmup"),
                                     IntegerArgumentType.getInteger(ctx, "measure"));
                             ctx.getSource().sendSuccess(() -> Component.literal("Viva Core bench: старт"), false);
+                            return 1;
+                        })));
+    }
+
+    /** Только dev: /viva devdoor &lt;pos&gt; &lt;true|false&gt; — открыть/закрыть дверь ОРИОНа (для сцен dev-скриншотов, права 2 — из функций). */
+    public static LiteralArgumentBuilder<CommandSourceStack> buildDoor() {
+                // dev-скриншоты двери (задача 11): открыть/закрыть дверь ОРИОНа без игрока с ключом
+        return Commands.literal("devdoor").requires(src -> src.hasPermission(2)).then(Commands.argument("pos", net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                        .then(Commands.argument("open", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(ctx -> {
+                            var level = ctx.getSource().getServer().overworld();
+                            BlockPos pos = net.minecraft.commands.arguments.coordinates.BlockPosArgument.getLoadedBlockPos(ctx, level, "pos");
+                            var state = level.getBlockState(pos);
+                            if (!(state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock door)) return 0;
+                            door.setOpen(null, level, state, pos, com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "open"));
                             return 1;
                         })));
     }

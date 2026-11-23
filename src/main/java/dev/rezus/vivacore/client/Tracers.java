@@ -106,6 +106,9 @@ public final class Tracers {
             if (head - tail < 1e-3) continue;
             Vec3 a = t.from.add(t.dir.scale(tail)).subtract(cam);
             Vec3 b = t.from.add(t.dir.scale(head)).subtract(cam);
+            // задача 11: у камеры (выстрел в самого игрока или мимо лица) черту не рисуем — иначе она во весь экран
+            double near = VivaClientConfig.hideNearCamera();
+            if (near > 0 && (a.lengthSqr() < near * near || b.lengthSqr() < near * near)) continue;
             // лента, повёрнутая к камере (камера в начале координат)
             Vec3 side = b.subtract(a).cross(a.add(b).scale(-0.5));
             if (side.lengthSqr() < 1e-10) continue;

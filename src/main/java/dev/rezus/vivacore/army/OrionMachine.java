@@ -42,7 +42,9 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * <p>
  * Поведение пока простое (без оружия — задача 7): патрулирует вокруг точки появления; заметив игрока (не в
  * творческом режиме и не наблюдателя), поворачивается к нему и подходит на дистанцию «огня» (конфиг), но не атакует.
- * После отмены программы ОРИОНа незаражённые машины «засыпают» (NoAI); заражённых ведёт заражение — они не спят.
+ * После отмены программы ОРИОНа незаражённые машины отключаются (задача 11): в течение army.combat.shutdownSeconds
+ * каждая в случайный момент проигрывает анимацию death и исчезает без дропа и опыта. Заражённых ведёт заражение —
+ * они остаются. (Раньше машины «засыпали» с NoAI, и их добивали заражённые.)
  * Тяжёлые без игроков рядом исчезают через army.limits.heavyDespawnSeconds.
  * <p>
  * Анимации по состоянию: смерть → death; сон → стоп; движется → move (walk/move/fly); иначе → idle (idle/hover).
@@ -59,8 +61,12 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
     @Nullable
     protected BlockPos home;
     private boolean configApplied;
-    /** Машину усыпила отмена программы ОРИОНа (а не NoAI из команды) — разбудить можно только такую. */
+    /** Старое (до задачи 11) «усыпление» отменой программы — из сохранений: такую машину будим и отключаем. */
     private boolean sleptByOrion;
+    /** Тик, на котором машина отключится после отмены программы (−1 — не назначен). */
+    private long shutdownAt = -1;
+    /** Машина отключилась (отмена программы): без дропа и опыта. */
+    private boolean shutDown;
     private int noPlayerTicks;
     /** Оружие (задача 7). */
     final MachineCombat combat = new MachineCombat(this);
@@ -91,7 +97,9 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
                 .add(Attributes.FLYING_SPEED, Math.max(t.defaultSpeed, 0.01))
                 .add(Attributes.ARMOR, t.defaultArmor)
                 .add(Attributes.FOLLOW_RANGE, Math.max(t.defaultDetectRange, 16))
-                .add(Attributes.KNOCKBACK_RESISTANCE, t.heavy || t.boss() ? 1.0 : 0.2);
+                .add(Attributes.KNOCKBACK_RESISTANCE, t.heavy || t.boss() ? 1.0 : 0.2)
+                // задача 11: большая наземная техника переезжает ступеньку в блок (иначе при езде напрямую застревает)
+                .add(Attributes.STEP_HEIGHT, t.heavy && t.movement == MachineType.Movement.GROUND ? 1.0 : 0.6);
     }
 
     /** registerGoals вызывается из конструктора Mob раньше, чем присвоено поле machine, — цели добавляем здесь. */
@@ -193,9 +201,22 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
         return super.finalizeSpawn(level, difficulty, spawnType, data);
     }
 
+    /** Хитбокс из конфига army.&lt;id&gt;.hitboxWidth / hitboxHeight (размер типа сущности задан до загрузки конфига). */
+    @Override
+    public net.minecraft.world.entity.EntityDimensions getDefaultDimensions(net.minecraft.world.entity.Pose pose) {
+        return net.minecraft.world.entity.EntityDimensions.scalable((float) VivaConfig.machineHitboxWidth(machine),
+                (float) VivaConfig.machineHitboxHeight(machine));
+    }
+
+    /** Масштаб модели и стволов (конфиг army.&lt;id&gt;.scale). */
+    public float modelScale() {
+        return (float) VivaConfig.machineScale(machine);
+    }
+
     /** Здоровье, скорость, броня и дальность из конфига army.&lt;id&gt;. */
     protected void applyConfig(boolean heal) {
         configApplied = true;
+        refreshDimensions();
         setBase(Attributes.MAX_HEALTH, VivaConfig.machineHealth(machine));
         double speed = Math.max(VivaConfig.machineSpeed(machine), 0.0);
         setBase(Attributes.MOVEMENT_SPEED, machine.movement == MachineType.Movement.FLYING ? speed / 2 : speed);
@@ -217,35 +238,67 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
             return;
         }
         if (!configApplied) applyConfig(false);
+        if (tickCount % 100 == 0 && (Math.abs(getBbWidth() - VivaConfig.machineHitboxWidth(machine)) > 1e-3
+                || Math.abs(getBbHeight() - VivaConfig.machineHitboxHeight(machine)) > 1e-3)) {
+            refreshDimensions(); // конфиг поменяли на ходу
+        }
         if (home == null) home = blockPosition();
         if (!isNoAi() && isAlive()) {
             combat.tick();
         } else {
             setLaserTarget(-1);
         }
-        if (tickCount % 20 == 0) {
+        if (tickCount % 20 == 0 || shutdownAt >= 0) {
             updateSleep();
             tickHeavyDespawn();
         }
     }
 
-    /** Отмена программы ОРИОНа усыпляет незаражённые машины; сброс флага (оператор) — будит их. */
+    /**
+     * Задача 11: отмена программы ОРИОНа отключает незаражённые машины — каждой назначается случайный момент в пределах
+     * army.combat.shutdownSeconds, тогда она «умирает» (анимация death) без дропа и опыта. Сброс флага оператором до
+     * этого момента отменяет отключение.
+     */
     protected void updateSleep() {
-        if (machine.infected || !(level() instanceof ServerLevel server)) return;
-        boolean cancelled = Orion.isProgramCancelled(server.getServer());
-        if (cancelled && !isNoAi()) {
-            sleptByOrion = true;
-            getNavigation().stop();
-            setDeltaMovement(Vec3.ZERO);
-            setNoAi(true);
-        } else if (!cancelled && sleptByOrion) {
-            sleptByOrion = false;
+        if (machine.infected || !(level() instanceof ServerLevel server) || !isAlive()) return;
+        if (sleptByOrion) {
+            sleptByOrion = false; // машина из старого сохранения, усыплённая NoAI
             setNoAi(false);
         }
+        boolean cancelled = Orion.isProgramCancelled(server.getServer());
+        long now = server.getGameTime();
+        if (!cancelled) {
+            shutdownAt = -1;
+            return;
+        }
+        if (shutdownAt < 0) {
+            int window = Math.max(0, VivaConfig.armyShutdownSeconds()) * 20;
+            shutdownAt = now + (window == 0 ? 0 : getRandom().nextInt(window + 1));
+        }
+        if (now >= shutdownAt) shutDown();
     }
 
-    public boolean isAsleep() {
-        return isNoAi();
+    /** Отключить машину сейчас: анимация death, без дропа и опыта. */
+    public void shutDown() {
+        if (shutDown || !isAlive()) return;
+        shutDown = true;
+        getNavigation().stop();
+        setTarget(null);
+        kill();
+    }
+
+    public boolean isShutDown() {
+        return shutDown;
+    }
+
+    @Override
+    protected boolean shouldDropLoot() {
+        return !shutDown && super.shouldDropLoot();
+    }
+
+    @Override
+    public boolean shouldDropExperience() {
+        return !shutDown && super.shouldDropExperience();
     }
 
     private void tickHeavyDespawn() {
@@ -330,6 +383,37 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
 
     // ---------------------------------------------------------------- цели
 
+    /** Танк и мех (наземная тяжёлая техника): большой хитбокс, обычный путь часто не строится — едут напрямую. */
+    boolean drivesDirect() {
+        return machine.heavy && machine.movement == MachineType.Movement.GROUND;
+    }
+
+    /**
+     * Задача 11: при включённом vivaArmyGriefing танк и мех ломают на пути листву, траву, цветы, саженцы и снег — как
+     * разоритель листву. Блоки — в хитбоксе, сдвинутом на блок вперёд; каждое разрушение проходит через
+     * LivingDestroyBlockEvent (его фильтруют защита построек и приваты).
+     */
+    void breakSoftBlocksAhead() {
+        if (!(level() instanceof ServerLevel server) || !ArmyRules.griefing(server)) return;
+        float yaw = getYRot() * Mth.DEG_TO_RAD;
+        net.minecraft.world.phys.AABB ahead = getBoundingBox().move(-Mth.sin(yaw), 0, Mth.cos(yaw)).deflate(0.05, 0, 0.05);
+        for (BlockPos p : BlockPos.betweenClosed(Mth.floor(ahead.minX), Mth.floor(ahead.minY), Mth.floor(ahead.minZ),
+                Mth.floor(ahead.maxX), Mth.floor(ahead.maxY), Mth.floor(ahead.maxZ))) {
+            var state = server.getBlockState(p);
+            if (!softBlock(state)) continue;
+            if (!net.neoforged.neoforge.event.EventHooks.onEntityDestroyBlock(this, p, state)) continue;
+            server.destroyBlock(p, true, this);
+        }
+    }
+
+    /** Мягкое, что ломает едущая техника: листва, заменяемые растения и снежный слой, цветы, саженцы, снег. */
+    static boolean softBlock(net.minecraft.world.level.block.state.BlockState state) {
+        if (state.isAir() || !state.getFluidState().isEmpty()) return false;
+        return state.is(net.minecraft.tags.BlockTags.LEAVES) || state.is(net.minecraft.tags.BlockTags.FLOWERS)
+                || state.is(net.minecraft.tags.BlockTags.SAPLINGS) || state.is(net.minecraft.world.level.block.Blocks.SNOW_BLOCK)
+                || state.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW) || state.canBeReplaced();
+    }
+
     /** Целевая высота над землёй для патруля (летающие переопределяют). */
     protected double patrolY(int x, int z) {
         return level().getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
@@ -370,6 +454,8 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
     static final class ApproachTargetGoal extends Goal {
         private final OrionMachine m;
         private int repath;
+        /** Сколько ещё тиков ехать к цели напрямую (путь не нашёлся). */
+        private int direct;
 
         ApproachTargetGoal(OrionMachine m) {
             this.m = m;
@@ -408,14 +494,27 @@ public class OrionMachine extends PathfinderMob implements GeoEntity {
                 return;
             }
             if (dist > fire || !m.combat.canEngage(target)) {
+                if (direct > 0) {
+                    // большой хитбокс (танк, мех): пути нет — едем к цели напрямую, ломая мягкое на пути
+                    direct--;
+                    m.getMoveControl().setWantedPosition(target.getX(), target.getY(), target.getZ(), 1.0);
+                    if (m.tickCount % 5 == 0) m.breakSoftBlocksAhead();
+                    return;
+                }
                 if (--repath <= 0) {
                     repath = 10;
                     // летающие держатся выше цели; рой — прямо на цель (наниты бьют при касании)
                     boolean above = m.machine.movement == MachineType.Movement.FLYING && m.machine.weapon() != MachineType.Weapon.SWARM;
                     double y = above ? target.getY() + VivaConfig.armyPatrolHeight() : target.getY(0.3);
-                    m.getNavigation().moveTo(target.getX(), y, target.getZ(), 1.0);
+                    boolean found = m.getNavigation().moveTo(target.getX(), y, target.getZ(), 1.0);
+                    var path = m.getNavigation().getPath();
+                    if (m.drivesDirect() && (!found || path == null || !path.canReach())) {
+                        m.getNavigation().stop();
+                        direct = VivaConfig.armyDirectDriveTicks();
+                    }
                 }
             } else {
+                direct = 0;
                 m.getNavigation().stop();
             }
         }

@@ -112,40 +112,35 @@ public final class HomeGameTests {
     }
 
     /**
-     * Кириллица в Brigadier: разбор и выполнение команды, подсказки по Tab на сервере,
-     * имена аргументов в подсказке использования.
+     * Задача 11: команды только английские — разбор и выполнение, подсказки по Tab, имена аргументов; русских
+     * псевдонимов нет.
      */
     @GameTest(template = EMPTY)
-    public static void cyrillicCommands(GameTestHelper h) {
+    public static void englishCommandsOnly(GameTestHelper h) {
         var server = h.getLevel().getServer();
         CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
         CommandSourceStack src = server.createCommandSourceStack().withSuppressedOutput();
 
-        for (String cmd : List.of("viva дом список", "viva home list")) {
-            ParseResults<CommandSourceStack> parse = dispatcher.parse(cmd, src);
-            h.assertTrue(parse.getExceptions().isEmpty() && !parse.getReader().canRead(),
-                    "команда разобрана целиком: " + cmd);
-            try {
-                dispatcher.execute(parse);
-            } catch (Exception e) {
-                h.fail("команда не выполнилась: " + cmd + " — " + e.getMessage());
-            }
+        ParseResults<CommandSourceStack> parse = dispatcher.parse("viva home list", src);
+        h.assertTrue(parse.getExceptions().isEmpty() && !parse.getReader().canRead(), "команда разобрана целиком");
+        try {
+            dispatcher.execute(parse);
+        } catch (Exception e) {
+            h.fail("команда не выполнилась: " + e.getMessage());
         }
+        List<String> top = suggest(dispatcher, src, "viva ");
+        h.assertTrue(top.containsAll(List.of("home", "zhiva", "orion", "army", "stage", "sites", "nexus")), "подкоманды: " + top);
+        h.assertTrue(top.stream().noneMatch(w -> w.chars().anyMatch(c -> Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CYRILLIC)),
+                "русских подкоманд нет: " + top);
+        h.assertTrue(dispatcher.parse("viva дом список", src).getReader().canRead(), "«viva дом» больше не команда");
+        List<String> sub = suggest(dispatcher, src, "viva home ");
+        h.assertTrue(sub.containsAll(List.of("approve", "remove", "list", "setpos", "add")), "подсказки подкоманд: " + sub);
 
-        h.assertTrue(suggest(dispatcher, src, "viva д").contains("дом"), "подсказка «дом» по «д»");
-        List<String> sub = suggest(dispatcher, src, "viva дом ");
-        h.assertTrue(sub.containsAll(List.of("одобрить", "снять", "список", "место", "добавить")), "подсказки подкоманд: " + sub);
-        h.assertTrue(suggest(dispatcher, src, "viva дом с").containsAll(List.of("снять", "список")),
-                "подсказки по началу кириллического слова");
-        h.assertTrue(suggest(dispatcher, src, "viva дом од").contains("одобрить"), "подсказка «одобрить»");
-
-        CommandNode<CommandSourceStack> home = dispatcher.getRoot().getChild("viva").getChild("дом");
+        CommandNode<CommandSourceStack> home = dispatcher.getRoot().getChild("viva").getChild("home");
         String usage = String.join(" | ", dispatcher.getAllUsage(home, src, true));
-        h.assertTrue(usage.contains("одобрить <ник1> <ник2>") && usage.contains("снять <ник>")
-                && usage.contains("добавить <ник> <к_нику>") && usage.contains("место <ник> <координаты>"),
-                "имена аргументов: " + usage);
-
-        h.assertTrue(dispatcher.parse("viva дом снятьX", src).getReader().canRead(), "лишние буквы не принимаются");
+        h.assertTrue(usage.contains("approve <player1> <player2>") && usage.contains("remove <player>")
+                && usage.contains("add <player> <to_player>") && usage.contains("setpos <player> <pos>"), "имена аргументов: " + usage);
+        h.assertTrue(dispatcher.parse("viva home removeX", src).getReader().canRead(), "лишние буквы не принимаются");
         h.succeed();
     }
 

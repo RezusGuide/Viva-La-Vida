@@ -209,6 +209,112 @@ public final class ArmyCombatGameTests {
         });
     }
 
+    // ---------------------------------------------------------------- движение (задача 11, пункт 6)
+
+    /**
+     * Машины не стоят: без цели — патрулируют (уходят от точки появления), с целью дальше дистанции огня — подходят.
+     * Площадка GameTest обнесена барьером, поэтому цель — внутри неё: неуязвимый разбойник без ИИ в ~11 блоках, а
+     * дистанция огня на время теста — 3 блока. Танк (большой хитбокс) — тоже.
+     */
+    @GameTest(template = AREA, batch = "army_move", timeoutTicks = 400)
+    public static void machinesPatrolAndApproach(GameTestHelper h) {
+        double oldInf = VivaConfig.machineFireRange(MachineType.INFANTRY_LIGHT);
+        double oldTank = VivaConfig.machineFireRange(MachineType.TANK);
+        setFireRange(MachineType.INFANTRY_LIGHT, 3);
+        setFireRange(MachineType.TANK, 3);
+        Pillager far = dummy(h, new BlockPos(11, 1, 12));
+        OrionMachine hunter = machine(h, MachineType.INFANTRY_LIGHT, new BlockPos(1, 1, 12));
+        OrionMachine tank = machine(h, MachineType.TANK, new BlockPos(3, 1, 4));
+        double startHunter = hunter.distanceTo(far);
+        double startTank = tank.distanceTo(far);
+        h.runAfterDelay(380, () -> {
+            double hunterDist = hunter.distanceTo(far);
+            double tankDist = tank.distanceTo(far);
+            String info = "пехота " + String.format("%.1f → %.1f", startHunter, hunterDist)
+                    + " (цель " + (hunter.getTarget() == far) + "); танк " + String.format("%.1f → %.1f", startTank, tankDist)
+                    + " (цель " + (tank.getTarget() == far) + ")";
+            dev.rezus.vivacore.VivaCore.LOGGER.info("Viva Core движение: {}", info);
+            for (var e : h.getLevel().getEntitiesOfClass(OrionMachine.class, new AABB(h.absolutePos(BlockPos.ZERO)).inflate(40))) e.discard();
+            far.discard();
+            setFireRange(MachineType.INFANTRY_LIGHT, oldInf);
+            setFireRange(MachineType.TANK, oldTank);
+            h.assertTrue(hunterDist < startHunter - 4, "пехота подошла к цели: " + info);
+            h.assertTrue(tankDist < startTank - 3, "танк подъехал к цели: " + info);
+            h.succeed();
+        });
+    }
+
+    /** Без целей машина патрулирует — уходит от точки появления (пехота и танк). */
+    @GameTest(template = AREA, batch = "army_patrol", timeoutTicks = 400)
+    public static void machinesPatrol(GameTestHelper h) {
+        OrionMachine inf = machine(h, MachineType.INFANTRY_LIGHT, new BlockPos(9, 1, 3));
+        OrionMachine tank = machine(h, MachineType.TANK, new BlockPos(4, 1, 9));
+        Vec3 a = inf.position();
+        Vec3 b = tank.position();
+        double[] max = {0, 0};
+        h.onEachTick(() -> {
+            max[0] = Math.max(max[0], inf.position().distanceTo(a));
+            max[1] = Math.max(max[1], tank.position().distanceTo(b));
+        });
+        h.runAfterDelay(380, () -> {
+            inf.discard();
+            tank.discard();
+            dev.rezus.vivacore.VivaCore.LOGGER.info("Viva Core движение: патруль пехоты {}, танка {}", max[0], max[1]);
+            h.assertTrue(max[0] > 1.5 && max[1] > 1.5, "патрулируют: пехота " + max[0] + ", танк " + max[1]);
+            h.succeed();
+        });
+    }
+
+    private static void setFireRange(MachineType t, double v) {
+        VivaConfig.machineFireRangeValue(t).set(v);
+    }
+
+    // ---------------------------------------------------------------- размер (задача 11)
+
+    /**
+     * Задача 11: хитбокс и масштаб — из конфига (танк 4 × 4, мех высотой 5), ствол танка поднят по масштабу; танк
+     * ломает перед собой листву и траву только при включённом vivaArmyGriefing, камень — никогда.
+     */
+    @GameTest(template = AREA, batch = "army_size")
+    public static void bigMachinesSizeAndSoftBlocks(GameTestHelper h) {
+        var rule = h.getLevel().getGameRules().getRule(ArmyRules.GRIEFING);
+        boolean was = rule.get();
+        OrionMachine tank = machine(h, MachineType.TANK, new BlockPos(3, 1, 7));
+        OrionMachine mech = machine(h, MachineType.MECH_WALKER, new BlockPos(9, 1, 3));
+        tank.setNoAi(true);
+        mech.setNoAi(true);
+        h.assertTrue(Math.abs(tank.getBbWidth() - VivaConfig.machineHitboxWidth(MachineType.TANK)) < 1e-3
+                && Math.abs(mech.getBbHeight() - VivaConfig.machineHitboxHeight(MachineType.MECH_WALKER)) < 1e-3,
+                "хитбокс из конфига: танк " + tank.getBbWidth() + ", мех " + mech.getBbHeight());
+        h.assertTrue(tank.getBbWidth() >= 3.5 && mech.getBbHeight() >= 4.5, "танк и мех — большие");
+        double muzzleUp = tank.combat().muzzle(0).y - tank.getY();
+        h.assertTrue(Math.abs(muzzleUp - 18.8 / 16.0 * tank.modelScale()) < 1e-3, "ствол танка по масштабу: " + muzzleUp);
+        h.assertTrue(tank.drivesDirect() && mech.drivesDirect()
+                && !machine(h, MachineType.INFANTRY_LIGHT, new BlockPos(1, 1, 1)).drivesDirect(), "напрямую — только танк и мех");
+        // танк смотрит на +X, перед ним листва, трава и камень
+        tank.setYRot(-90f);
+        BlockPos front = BlockPos.containing(tank.getBoundingBox().maxX + 0.5, tank.getY() + 0.5, tank.getZ());
+        BlockPos rel = front.subtract(h.absolutePos(BlockPos.ZERO));
+        h.setBlock(rel, Blocks.OAK_LEAVES.defaultBlockState().setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
+        h.setBlock(rel.above(), Blocks.STONE);
+        h.setBlock(rel.north(), Blocks.SHORT_GRASS);
+        h.setBlock(rel.north().below(), Blocks.GRASS_BLOCK);
+        rule.set(false, h.getLevel().getServer());
+        tank.breakSoftBlocksAhead();
+        boolean keptWhenOff = h.getBlockState(rel).is(Blocks.OAK_LEAVES);
+        rule.set(true, h.getLevel().getServer());
+        tank.breakSoftBlocksAhead();
+        boolean leavesGone = h.getBlockState(rel).isAir();
+        boolean grassGone = h.getBlockState(rel.north()).isAir();
+        boolean stoneKept = h.getBlockState(rel.above()).is(Blocks.STONE);
+        rule.set(was, h.getLevel().getServer());
+        for (var e : h.getLevel().getEntitiesOfClass(OrionMachine.class, new AABB(h.absolutePos(BlockPos.ZERO)).inflate(20))) e.discard();
+        h.assertTrue(keptWhenOff, "без разрушения листва цела");
+        h.assertTrue(leavesGone && grassGone, "при разрушении листва и трава сломаны");
+        h.assertTrue(stoneKept, "камень цел");
+        h.succeed();
+    }
+
     // ---------------------------------------------------------------- щит, лазер
 
     /** Щит штурмовика: урон спереди снижен, со спины — полный. */

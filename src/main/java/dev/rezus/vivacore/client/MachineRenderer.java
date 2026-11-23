@@ -36,9 +36,12 @@ public class MachineRenderer extends GeoEntityRenderer<OrionMachine> {
      */
     @Override
     public void render(OrionMachine entity, float entityYaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-        float offset = entity.machine().modelOffsetPx() / 16f;
+        float scale = entity.modelScale();
+        float offset = entity.machine().modelOffsetPx() / 16f * scale;
+        this.shadowRadius = Math.min(entity.getBbWidth() * 0.5f, 3f);
         pose.pushPose();
         pose.translate(0, offset, 0);
+        pose.scale(scale, scale, scale); // задача 11: масштаб модели из конфига army.<id>.scale
         super.render(entity, entityYaw, partialTick, pose, buffers, light);
         pose.popPose();
         int laser = entity.laserTarget();

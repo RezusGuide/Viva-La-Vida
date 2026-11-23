@@ -43,8 +43,6 @@ public final class HomeCommands {
     public record Words(String home, String approve, String remove, String list, String setPos, String add,
                         String player1, String player2, String player, String pos, String toPlayer) {}
 
-    public static final Words RU = new Words("дом", "одобрить", "снять", "список", "место", "добавить",
-            "ник1", "ник2", "ник", "координаты", "к_нику");
     public static final Words EN = new Words("home", "approve", "remove", "list", "setpos", "add",
             "player1", "player2", "player", "pos", "to_player");
 

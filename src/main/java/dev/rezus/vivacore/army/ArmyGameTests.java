@@ -230,13 +230,22 @@ public final class ArmyGameTests {
 
     // ---------------------------------------------------------------- отмена программы
 
-    /** После отмены программы: волн нет, тревога не растёт, машины засыпают, заражённые — нет; сброс будит. */
+    /**
+     * После отмены программы (задача 11): волн нет, тревога не растёт, машины ОРИОНа отключаются в пределах
+     * army.combat.shutdownSeconds — без дропа; заражённые остаются.
+     */
     @GameTest(template = AREA, batch = "army_cancel", timeoutTicks = 200)
-    public static void cancelledProgramSleeps(GameTestHelper h) {
+    public static void cancelledProgramShutsDown(GameTestHelper h) {
         var server = h.getLevel().getServer();
         boolean was = enableArmy();
+        int oldWindow = VivaConfig.armyShutdownSeconds();
+        VivaConfig.ARMY_SHUTDOWN_SECONDS.set(2);
         OrionMachine normal = ArmyEntities.type(MachineType.INFANTRY_LIGHT).spawn(h.getLevel(), h.absolutePos(new BlockPos(3, 1, 3)), MobSpawnType.SPAWN_EGG);
-        OrionMachine infected = ArmyEntities.type(MachineType.INFANTRY_LIGHT_INFECTED).spawn(h.getLevel(), h.absolutePos(new BlockPos(8, 1, 8)), MobSpawnType.SPAWN_EGG);
+        OrionMachine tank = ArmyEntities.type(MachineType.TANK).spawn(h.getLevel(), h.absolutePos(new BlockPos(6, 1, 10)), MobSpawnType.SPAWN_EGG);
+        OrionMachine infected = ArmyEntities.type(MachineType.INFANTRY_LIGHT_INFECTED).spawn(h.getLevel(), h.absolutePos(new BlockPos(9, 1, 3)), MobSpawnType.SPAWN_EGG);
+        normal.setNoAi(true);
+        tank.setNoAi(true);
+        infected.setNoAi(true);
         ServerPlayer p = TestPlayers.player(h, new BlockPos(6, 1, 7));
         Orion.cancel(server, "test");
         Alarm.set(h.getLevel(), p.blockPosition(), 3);
@@ -246,20 +255,23 @@ public final class ArmyGameTests {
         for (int s = 0; s < VivaConfig.armyWaveDelay() + 5; s++) {
             h.assertTrue(Waves.tickSector(List.of(p), 20) == Waves.Event.NONE, "волн нет");
         }
-        h.startSequence()
-                .thenExecuteAfter(45, () -> {
-                    h.assertTrue(normal.isAsleep(), "машина ОРИОНа уснула");
-                    h.assertTrue(!infected.isAsleep(), "заражённая не спит");
-                    Orion.reset(server);
-                })
-                .thenExecuteAfter(45, () -> {
-                    h.assertTrue(!normal.isAsleep(), "после сброса флага машина проснулась");
-                    normal.discard();
-                    infected.discard();
-                    Alarm.set(h.getLevel(), p.blockPosition(), 0);
-                    VivaConfig.ARMY_ENABLED.set(was);
-                })
-                .thenSucceed();
+        net.minecraft.world.phys.AABB area = new net.minecraft.world.phys.AABB(h.absolutePos(BlockPos.ZERO)).inflate(24);
+        h.runAfterDelay(110, () -> {
+            boolean normalOff = normal.isShutDown() && (normal.isRemoved() || normal.isDeadOrDying());
+            boolean tankOff = tank.isShutDown();
+            boolean infectedAlive = infected.isAlive() && !infected.isShutDown();
+            int drops = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area).size();
+            int orbs = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.ExperienceOrb.class, area).size();
+            infected.discard();
+            Orion.reset(server);
+            Alarm.set(h.getLevel(), p.blockPosition(), 0);
+            VivaConfig.ARMY_SHUTDOWN_SECONDS.set(oldWindow);
+            VivaConfig.ARMY_ENABLED.set(was);
+            h.assertTrue(normalOff && tankOff, "машины ОРИОНа отключились: пехота " + normalOff + ", танк " + tankOff);
+            h.assertTrue(infectedAlive, "заражённая осталась");
+            h.assertTrue(drops == 0 && orbs == 0, "без дропа и опыта: предметов " + drops + ", опыта " + orbs);
+            h.succeed();
+        });
     }
 
     /** Карта ожидаемого дропа покрывает все машины (защита от забытой таблицы лута). */

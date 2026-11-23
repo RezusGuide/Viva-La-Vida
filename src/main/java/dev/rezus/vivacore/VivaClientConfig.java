@@ -10,6 +10,8 @@ public final class VivaClientConfig {
     public static final ModConfigSpec.DoubleValue TRACER_SPEED;
     public static final ModConfigSpec.DoubleValue TRACER_LENGTH;
     public static final ModConfigSpec.DoubleValue TRACER_WIDTH;
+    public static final ModConfigSpec.DoubleValue FLASH_SIZE;
+    public static final ModConfigSpec.DoubleValue NEAR_CAMERA;
 
     static {
         BUILDER.comment("Армия ОРИОНа: отрисовка").push("army");
@@ -25,6 +27,12 @@ public final class VivaClientConfig {
         TRACER_WIDTH = BUILDER
                 .comment("Толщина черты трассера, блоки")
                 .defineInRange("tracerWidth", 0.04, 0.005, 0.5);
+        FLASH_SIZE = BUILDER
+                .comment("Задача 11: полуразмер вспышки выстрела, блоки (было 0.35 — квадрат 0.7 у камеры закрывал обзор)")
+                .defineInRange("muzzleFlashSize", 0.15, 0.02, 1.0);
+        NEAR_CAMERA = BUILDER
+                .comment("Вспышки, трассеры и снаряды ОРИОНа ближе этого к камере не рисуются (иначе заслоняют экран), блоки")
+                .defineInRange("hideNearCamera", 1.5, 0.0, 8.0);
         BUILDER.pop();
     }
 
@@ -39,6 +47,8 @@ public final class VivaClientConfig {
     public static double tracerSpeed() { return d(TRACER_SPEED); }
     public static double tracerLength() { return d(TRACER_LENGTH); }
     public static double tracerWidth() { return d(TRACER_WIDTH); }
+    public static double muzzleFlashSize() { return d(FLASH_SIZE); }
+    public static double hideNearCamera() { return d(NEAR_CAMERA); }
 
     public static int swarmUnits() {
         return SPEC.isLoaded() ? SWARM_UNITS.get() : SWARM_UNITS.getDefault();

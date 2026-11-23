@@ -6,13 +6,12 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 
-/** Команды оператора: /viva орион статус | сбросить (EN: /viva orion status | reset). */
+/** Команды оператора: /viva orion status | reset. */
 public final class OrionCommands {
     private OrionCommands() {}
 
     public record Words(String orion, String status, String reset) {}
 
-    public static final Words RU = new Words("орион", "статус", "сбросить");
     public static final Words EN = new Words("orion", "status", "reset");
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(Words w) {

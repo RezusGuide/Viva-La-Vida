@@ -17,8 +17,10 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 /**
  * Створка двери ОРИОНа: уезжает вверх (или вниз), а не поворачивается.
- * Рисуются обычные модели закрытой двери (нижняя и верхняя половины), сжатые по высоте к кромке, куда уезжает
- * створка: видимая доля = 1 − «насколько открыта». Так створка не выходит за проём.
+ * Рисуются обычные модели закрытой двери (нижняя и верхняя половины), сдвинутые целиком на 2 × «насколько открыта»
+ * блока (задача 11: раньше створка сжималась по высоте и выглядела как бумага). Открытая створка стоит в двух
+ * блоках над проёмом: в непрозрачной стене (стена ОРИОНа в лаборатории) её не видно, без стены сверху она висит
+ * над проходом.
  */
 public class OrionDoorRenderer implements BlockEntityRenderer<OrionDoorBlockEntity> {
     private final BlockRenderDispatcher blocks;
@@ -43,16 +45,9 @@ public class OrionDoorRenderer implements BlockEntityRenderer<OrionDoorBlockEnti
         }
         float t = (float) Mth.clamp((now - be.changeTick) / VivaConfig.orionDoorSlideTicks(), 0.0, 1.0);
         float opened = open ? t : 1 - t;
-        float visible = 1 - opened;
-        if (visible <= 0.001f) {
-            return;
-        }
         boolean down = VivaConfig.orionDoorSlidesDown();
         pose.pushPose();
-        float anchor = down ? 0f : 2f;
-        pose.translate(0, anchor, 0);
-        pose.scale(1, visible, 1);
-        pose.translate(0, -anchor, 0);
+        pose.translate(0, (down ? -2f : 2f) * opened, 0);
 
         BlockState closed = state.setValue(DoorBlock.OPEN, false);
         VertexConsumer consumer = buffers.getBuffer(Sheets.cutoutBlockSheet());
@@ -67,10 +62,10 @@ public class OrionDoorRenderer implements BlockEntityRenderer<OrionDoorBlockEnti
                 1f, 1f, 1f, light, overlay);
     }
 
-    /** Створка рисуется на 2 блока вверх от нижней половины. */
+    /** Створка — 2 блока от нижней половины и ещё до 2 блоков вверх или вниз, куда она уезжает. */
     @Override
     public net.minecraft.world.phys.AABB getRenderBoundingBox(OrionDoorBlockEntity be) {
-        return new net.minecraft.world.phys.AABB(be.getBlockPos()).expandTowards(0, 1, 0);
+        return new net.minecraft.world.phys.AABB(be.getBlockPos()).expandTowards(0, 3, 0).expandTowards(0, -2, 0);
     }
 
     /** Создаёт рендерер (для регистрации). */

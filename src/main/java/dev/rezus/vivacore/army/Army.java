@@ -12,7 +12,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Армия ОРИОНа: выключатели и события (тесты 24 и 27).
- * Армия активна, если включена (army.enabled / «/viva армия вкл») и программа ОРИОНа не отменена.
+ * Армия активна, если включена (army.enabled / «/viva army on») и программа ОРИОНа не отменена.
  */
 public final class Army {
     private Army() {}

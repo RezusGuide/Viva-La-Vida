@@ -239,3 +239,23 @@ idea {
 tasks.matching { it.name == 'runServer' }.configureEach {
     standardInput = System.in
 }
+
+// Задача 11: в lang не должно остаться заглушек «[TEXT: …]» / «[ТЕКСТ: …]», ключи ru_ru и en_us — одинаковые.
+// Входит в check (а значит, в build).
+def checkLang = tasks.register('checkLang') {
+    def langDir = file('src/main/resources/assets/vivacore/lang')
+    inputs.dir(langDir)
+    doLast {
+        def slurper = new groovy.json.JsonSlurper()
+        def ru = slurper.parse(new File(langDir, 'ru_ru.json'), 'UTF-8')
+        def en = slurper.parse(new File(langDir, 'en_us.json'), 'UTF-8')
+        def problems = []
+        [ru_ru: ru, en_us: en].each { name, map ->
+            map.each { k, v -> if (v.toString().contains('[TEXT') || v.toString().contains('[ТЕКСТ')) problems << "${name}: ${k} = ${v}" }
+        }
+        (ru.keySet() - en.keySet()).each { problems << "нет в en_us: ${it}" }
+        (en.keySet() - ru.keySet()).each { problems << "нет в ru_ru: ${it}" }
+        if (!problems.isEmpty()) throw new GradleException('Заглушки или расхождения в lang:\n' + problems.join('\n'))
+    }
+}
+tasks.named('check') { dependsOn checkLang }

@@ -245,7 +245,7 @@ public final class HomeData extends SavedData {
             return Collections.unmodifiableList(members);
         }
 
-        /** Место дома (позиция одобрившего игрока или из «/viva дом место»); null — не задано. Для набегов. */
+        /** Место дома (позиция одобрившего игрока или из «/viva home setpos»); null — не задано. Для набегов. */
         @Nullable
         public GlobalPos pos() {
             return pos;

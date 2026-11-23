@@ -171,8 +171,9 @@ public final class MachineCombat {
         float yaw = m.yBodyRot * Mth.DEG_TO_RAD;
         Vec3 forward = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
         Vec3 right = new Vec3(-Mth.cos(yaw), 0, -Mth.sin(yaw));
-        double up = (p[1] + m.machine().modelOffsetPx()) / 16.0;
-        return m.position().add(right.scale(p[0] / 16.0)).add(0, up, 0).add(forward.scale(-p[2] / 16.0));
+        double s = m.modelScale() / 16.0; // модель рисуется с масштабом army.<id>.scale — стволы тоже
+        double up = (p[1] + m.machine().modelOffsetPx()) * s;
+        return m.position().add(right.scale(p[0] * s)).add(0, up, 0).add(forward.scale(-p[2] * s));
     }
 
     /** Позиция ствола на клиенте с интерполяцией (для луча снайпера). */

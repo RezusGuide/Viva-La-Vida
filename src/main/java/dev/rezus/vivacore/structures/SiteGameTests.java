@@ -147,8 +147,35 @@ public final class SiteGameTests {
                 }
             }
         }
+        // задача 11: с востока за площадкой — гора на 35 блоков выше земли (выше зоны сведения краёв)
+        int mountainX = c.getX() + (type == SiteType.LAB ? 36 : 24);
+        for (int x = mountainX; x <= mountainX + 10; x++) {
+            for (int z = c.getZ() - 20; z <= c.getZ() + 20; z++) {
+                for (int y = y0 + 11; y <= y0 + 35; y++) level.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState(), 2);
+            }
+        }
         BoundingBox box = Structures.placeAt(level, type, c, Rotation.NONE);
         h.assertTrue(box != null, type.id + " поставлен");
+        // нависаний (твёрдое над воздухом над землёй) в полосе вокруг коробки нет — сквозь землю не видно неба
+        int overhangs = 0;
+        int ring = VivaConfig.structuresEdgeBlend() + 2;
+        for (int x = box.minX() - ring; x <= box.maxX() + ring; x++) {
+            for (int z = box.minZ() - ring; z <= box.maxZ() + ring; z++) {
+                if (x >= box.minX() && x <= box.maxX() && z >= box.minZ() && z <= box.maxZ()) continue;
+                boolean solidAbove = false;
+                boolean gap = false;
+                for (int y = y0 + 45; y > y0; y--) {
+                    var st = level.getBlockState(new BlockPos(x, y, z));
+                    boolean solid = !st.isAir() && st.blocksMotion();
+                    if (solid && gap) {
+                        overhangs++;
+                        break;
+                    }
+                    if (solid) solidAbove = true;
+                    else if (solidAbove && st.isAir()) gap = true;
+                }
+            }
+        }
         int gaps = 0;
         int columns = 0;
         for (int x = box.minX(); x <= box.maxX(); x++) {
@@ -184,6 +211,7 @@ public final class SiteGameTests {
         h.assertTrue(nearGround.is(Blocks.DIRT) && higher.is(expectHigh), "столб: у земли " + nearGround + ", под коробкой (y0+"
                 + (yHigh - y0) + ") " + higher);
         h.assertTrue(maxStep <= 3, "к западу от коробки шаг высоты не больше 3: " + row);
+        h.assertTrue(overhangs == 0, "вокруг коробки нет нависающей земли (дыр с видом на небо): столбцов " + overhangs);
         if (type == SiteType.LAB) {
             // пол лаборатории: уровень земли постройки = верх плато (y0 + 10) — земля у стены не ниже пола больше чем на 3
             h.assertTrue(first >= y0 + 10 - 3, "у западной стены земля поднята к полу: " + first + " при плато " + (y0 + 10) + ", ряд " + row);

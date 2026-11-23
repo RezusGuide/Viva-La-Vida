@@ -201,8 +201,11 @@ public final class Waves {
             if (!level.getFluidState(below).isEmpty() || !level.getBlockState(below).is(SPAWN_GROUND)) continue;
             double lift = type.movement == MachineType.Movement.FLYING ? (cave ? 1 : VivaConfig.armyPatrolHeight() + 2) : 0;
             double y = ground + lift;
-            AABB box = entityType.getDimensions().makeBoundingBox(x, y, z);
-            if (!level.noCollision(box) || level.containsAnyLiquid(box)) continue;
+            // хитбокс — из конфига (задача 11: большие танк, вертолёт, мех); у тяжёлых — ещё блок свободного места вокруг
+            AABB box = net.minecraft.world.entity.EntityDimensions.scalable((float) VivaConfig.machineHitboxWidth(type),
+                    (float) VivaConfig.machineHitboxHeight(type)).makeBoundingBox(x, y, z);
+            AABB room = type.heavy ? box.inflate(1.0, 0, 1.0).expandTowards(0, 1, 0) : box;
+            if (!level.noCollision(room) || level.containsAnyLiquid(room)) continue;
             OrionMachine m = entityType.create(level);
             if (m == null) return null;
             float face = (float) (Mth.atan2(player.getZ() - z, player.getX() - x) * Mth.RAD_TO_DEG) - 90f;

@@ -31,7 +31,7 @@ public enum MachineType {
     public final Movement movement;
     /** Тяжёлая техника: лимит на группу игроков, исчезает без игроков рядом. */
     public final boolean heavy;
-    /** Заражённая версия: её ведёт заражение — отмена программы ОРИОНа её не усыпляет, тревогу не поднимает. */
+    /** Заражённая версия: её ведёт заражение — отмена программы ОРИОНа её не отключает, тревогу не поднимает. */
     public final boolean infected;
     public final float width, height;
     public final int eggPrimary, eggSecondary;
@@ -133,6 +133,30 @@ public enum MachineType {
             case INFANTRY_HEAVY -> INFANTRY_HEAVY_INFECTED;
             case MECH_WALKER -> MECH_WALKER_INFECTED;
             default -> null;
+        };
+    }
+
+    /**
+     * Масштаб модели по умолчанию (задача 11: танк и вертолёт выглядели игрушечными) — конфиг army.&lt;id&gt;.scale.
+     * Танк ×2 ≈ 6,5 × 4 × 4,2 блока (в нём уместились бы 4 человека), вертолёт ×2,6 ≈ 9,5 в длину и 4,3 в высоту
+     * с винтом 7,2 (6 человек), мех ×1,45 ≈ 5 блоков в высоту. Заражённые — как исходные.
+     */
+    public double defaultScale() {
+        return switch (this) {
+            case TANK -> 2.0;
+            case HELICOPTER -> 2.6;
+            case MECH_WALKER, MECH_WALKER_INFECTED -> 1.45;
+            default -> 1.0;
+        };
+    }
+
+    /** Хитбокс по умолчанию [ширина, высота] под масштаб модели — конфиг army.&lt;id&gt;.hitboxWidth / hitboxHeight. */
+    public double[] defaultHitbox() {
+        return switch (this) {
+            case TANK -> new double[] {4.0, 4.0};
+            case HELICOPTER -> new double[] {4.0, 4.2};
+            case MECH_WALKER, MECH_WALKER_INFECTED -> new double[] {3.2, 5.0};
+            default -> new double[] {width, height};
         };
     }
 

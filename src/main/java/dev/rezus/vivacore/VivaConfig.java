@@ -111,11 +111,18 @@ public final class VivaConfig {
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> ARMY_TARGETS_INFECTED;
     public static final ModConfigSpec.DoubleValue ARMY_INFECTION_CHANCE;
     public static final ModConfigSpec.BooleanValue ARMY_HITSCAN_BULLETS;
+    public static final ModConfigSpec.IntValue ARMY_DIRECT_DRIVE;
+    public static final ModConfigSpec.IntValue ARMY_SHUTDOWN_SECONDS;
     public static final ModConfigSpec.DoubleValue ARMY_HITSCAN_RANGE_FACTOR;
     public static final ModConfigSpec.DoubleValue ARMY_TRACER_SEND_RANGE;
     public static final ModConfigSpec.IntValue ARMY_MAX_PROJECTILES;
     public static final ModConfigSpec.IntValue ARMY_MAX_EXPLOSIONS;
 
+    /** Размер машины (задача 11): масштаб модели и стволов, хитбокс. */
+    public record MachineSize(ModConfigSpec.DoubleValue scale, ModConfigSpec.DoubleValue hitboxWidth, ModConfigSpec.DoubleValue hitboxHeight) {}
+
+    private static final java.util.Map<dev.rezus.vivacore.army.MachineType, MachineSize> SIZES =
+            new java.util.EnumMap<>(dev.rezus.vivacore.army.MachineType.class);
     private static final java.util.Map<dev.rezus.vivacore.army.MachineType, Machine> MACHINES =
             new java.util.EnumMap<>(dev.rezus.vivacore.army.MachineType.class);
     private static final ModConfigSpec.DoubleValue[] heliRocket = new ModConfigSpec.DoubleValue[3];
@@ -143,7 +150,7 @@ public final class VivaConfig {
     static {
         BUILDER.comment("Армия ОРИОНа").push("army");
         ARMY_ENABLED = BUILDER
-                .comment("Армия включена: тревога растёт и приходят волны (выключено до стадий; /viva армия вкл|выкл)")
+                .comment("Армия включена: тревога растёт и приходят волны (выключено до стадий; /viva army on|off)")
                 .define("enabled", false);
         ARMY_PATROL_RADIUS = BUILDER
                 .comment("Радиус патруля вокруг точки появления, блоки")
@@ -237,6 +244,13 @@ public final class VivaConfig {
 
         BUILDER.comment("Экономия в бою (тест 38, задача 9): пули — мгновенный выстрел без сущности, лимиты снарядов и взрывов")
                 .push("combat");
+        ARMY_DIRECT_DRIVE = BUILDER
+                .comment("Задача 11: танк и мех без найденного пути едут к цели напрямую столько тиков (потом снова ищут путь)")
+                .defineInRange("directDriveTicks", 60, 0, 1200);
+        ARMY_SHUTDOWN_SECONDS = BUILDER
+                .comment("Задача 11: после отмены программы ОРИОНа машины ОРИОНа отключаются (анимация death, без дропа)",
+                        "в течение стольких секунд — каждая в случайный момент")
+                .defineInRange("shutdownSeconds", 20, 0, 600);
         ARMY_HITSCAN_BULLETS = BUILDER
                 .comment("Пули — мгновенный выстрел (true) или, как в задаче 7, снаряды-сущности (false; для сравнения нагрузки)")
                 .define("hitscanBullets", true);
@@ -269,6 +283,10 @@ public final class VivaConfig {
                     BUILDER.comment("Пауза между выстрелами очереди, тики").defineInRange("burstGapTicks", (int) weaponDefault(t, 3), 1, 100),
                     BUILDER.comment("Разброс, градусы").defineInRange("spreadDegrees", weaponDefault(t, 4), 0.0, 45.0),
                     BUILDER.comment("Скорость снаряда, блоки за тик").defineInRange("projectileSpeed", weaponDefault(t, 5), 0.1, 10.0)));
+            SIZES.put(t, new MachineSize(
+                    BUILDER.comment("Масштаб модели (и позиций стволов) — задача 11").defineInRange("scale", t.defaultScale(), 0.1, 8.0),
+                    BUILDER.comment("Ширина хитбокса, блоки").defineInRange("hitboxWidth", t.defaultHitbox()[0], 0.1, 16.0),
+                    BUILDER.comment("Высота хитбокса, блоки").defineInRange("hitboxHeight", t.defaultHitbox()[1], 0.1, 16.0)));
             if (t == dev.rezus.vivacore.army.MachineType.HELICOPTER) {
                 BUILDER.comment("Ракеты (взрывные; при выключенном vivaArmyGriefing — сквозные)").push("rockets");
                 heliRocket[0] = BUILDER.defineInRange("damage", 10.0, 0.0, 1000.0);
@@ -377,7 +395,7 @@ public final class VivaConfig {
     static {
         BUILDER.comment("Три постройки: жилой отсек у спавна, лаборатория ОРИОНа, место падения капсулы (тест 31)").push("structures");
         STRUCTURES_AUTO_PLACE = BUILDER.comment("Ставить постройки самому: отсек — при первом запуске мира, лабораторию и Нексус — когда",
-                "их область впервые загрузилась. false — только командой /viva постройки поставить").define("autoPlace", true);
+                "их область впервые загрузилась. false — только командой /viva sites place").define("autoPlace", true);
         STRUCTURES_DISTANCE = BUILDER.comment("Расстояние от спавна до лаборатории и до Нексуса, блоки").defineInRange("distance", 10000.0, 0.0, 1.0e6);
         STRUCTURES_ANGLE_SHIFT = BUILDER.comment("Поиск суши: сдвиг угла до ±, градусы").defineInRange("searchAngleDegrees", 20.0, 0.0, 180.0);
         STRUCTURES_ANGLE_STEP = BUILDER.comment("Поиск суши: шаг угла, градусы").defineInRange("searchAngleStepDegrees", 2.0, 0.1, 90.0);
@@ -509,9 +527,14 @@ public final class VivaConfig {
     }
 
     public static double machineHealth(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).health()); }
+    public static double machineScale(dev.rezus.vivacore.army.MachineType t) { return d(SIZES.get(t).scale()); }
+    public static double machineHitboxWidth(dev.rezus.vivacore.army.MachineType t) { return d(SIZES.get(t).hitboxWidth()); }
+    public static double machineHitboxHeight(dev.rezus.vivacore.army.MachineType t) { return d(SIZES.get(t).hitboxHeight()); }
     public static double machineSpeed(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).speed()); }
     public static double machineArmor(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).armor()); }
     public static double machineFireRange(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).fireRange()); }
+    /** Для тестов: значение конфига дистанции огня. */
+    public static ModConfigSpec.DoubleValue machineFireRangeValue(dev.rezus.vivacore.army.MachineType t) { return MACHINES.get(t).fireRange(); }
     public static double machineDetectRange(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).detectRange()); }
     public static double machineDamage(dev.rezus.vivacore.army.MachineType t) { return d(MACHINES.get(t).damage()); }
     public static int machineCooldown(dev.rezus.vivacore.army.MachineType t) { return i(MACHINES.get(t).cooldown()); }
@@ -530,6 +553,8 @@ public final class VivaConfig {
     public static double swarmAuraRadius() { return d(SWARM_AURA_RADIUS); }
     public static int armyPierceBlocks() { return i(ARMY_PIERCE_BLOCKS); }
     public static boolean armyHitscanBullets() { return b(ARMY_HITSCAN_BULLETS); }
+    public static int armyDirectDriveTicks() { return i(ARMY_DIRECT_DRIVE); }
+    public static int armyShutdownSeconds() { return i(ARMY_SHUTDOWN_SECONDS); }
     public static double armyHitscanRangeFactor() { return d(ARMY_HITSCAN_RANGE_FACTOR); }
     public static double armyTracerSendRange() { return d(ARMY_TRACER_SEND_RANGE); }
     public static int armyMaxProjectilesPerSector() { return i(ARMY_MAX_PROJECTILES); }

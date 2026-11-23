@@ -39,6 +39,14 @@ public class OrionProjectileRenderer extends EntityRenderer<OrionProjectile> {
         };
     }
 
+    /** Задача 11: снаряд у самой камеры (вылетел из ствола рядом с игроком) не рисуется — плоский спрайт закрыл бы экран. */
+    @Override
+    public boolean shouldRender(OrionProjectile entity, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        double near = dev.rezus.vivacore.VivaClientConfig.hideNearCamera();
+        if (entity.distanceToSqr(x, y, z) < near * near) return false;
+        return super.shouldRender(entity, frustum, x, y, z);
+    }
+
     @Override
     public void render(OrionProjectile entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         float size = switch (entity.kind()) {

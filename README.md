@@ -9,39 +9,38 @@
 ./gradlew runClient           # dev-клиент
 ```
 
-Команды (операторы, уровень 2):
+Команды — только английские (задача 11), операторы, уровень 2:
 
-| Русская | Английская | Что делает |
-| --- | --- | --- |
-| `/viva дом одобрить <ник1> [ник2]` | `/viva home approve <player1> [player2]` | одобрить дом на 1–2 игроков |
-| `/viva дом добавить <ник> <к_нику>` | `/viva home add <player> <to_player>` | добавить игрока в дом другого (если есть место) |
-| `/viva дом место <ник> [x y z]` | `/viva home setpos <player> [pos]` | место дома; без координат — позиция того, кто выполняет |
-| `/viva дом снять <ник>` | `/viva home remove <player>` | снять игрока с дома |
-| `/viva дом список` | `/viva home list` | кто с домом, кто без дома |
+| Команда | Что делает |
+| --- | --- |
+| `/viva home approve <player1> [player2]` | одобрить дом на 1–2 игроков |
+| `/viva home add <player> <to_player>` | добавить игрока в дом другого (если есть место) |
+| `/viva home setpos <player> [pos]` | место дома; без координат — позиция того, кто выполняет |
+| `/viva home remove <player>` | снять игрока с дома |
+| `/viva home list` | кто с домом, кто без дома |
 
-Жива (оператор): `/viva жива статус <ник>`, `/viva жива состояние <ник> <implanted|removed|revealed>`,
-`/viva жива кушетка <ник>` (EN: `/viva zhiva status|state|couch`). Блок «продвинутое устройство имплантирования» —
+Жива (оператор): `/viva zhiva status <player>`, `/viva zhiva state <player> <implanted|removed|revealed>`,
+`/viva zhiva couch <player>`. Блок «продвинутое устройство имплантирования» —
 `vivacore:implant_device`.
 
 Create: Chromeware — необязательный: Viva Core читает его рефлексией, для сборки jar Chromeware не нужен.
 
-ОРИОН (оператор): `/viva орион статус | сбросить` (EN: `/viva orion status | reset`). Код терминала — конфиг
+ОРИОН (оператор): `/viva orion status | reset`. Код терминала — конфиг
 `orion.accessCode`; дверь ОРИОНа открывается только латунным ключом.
 
 Армия ОРИОНа: 13 машин (`vivacore:scout_drone`, `infantry_light`, `infantry_heavy`, `sniper`, `mech_walker`, `tank`,
 `helicopter`, `swarm_unit`, `core_guardian` и заражённые версии), яйца во вкладке Viva Core; естественный спавн — только
 в зоне влияния лаборатории (см. ниже).
 Тревога участков и волны подкрепления; выключено, пока `army.enabled = false`.
-Оператор: `/viva армия вкл | выкл | тревога <0–4> | статус` (EN: `/viva army on | off | alarm <0–4> | status`).
+Оператор: `/viva army on | off | alarm <0–4> | status`.
 Машины вооружены (кроме дронов и стража ядра); разрушение блоков армией — игровое правило `/gamerule vivaArmyGriefing`
 (по умолчанию true; при false — сквозные снаряды вместо взрывных).
 Три постройки (черновики `data/vivacore/structure/{crash_habitation,orion_lab,nexus_site}.nbt`, можно заменить своими —
 код смотрит только на имя файла и метки `structure_block` в режиме DATA: `vivacore:ground`, `vivacore:core`,
 `vivacore:player_spawn`, `vivacore:guardian`, `vivacore:guard`). Жилой отсек ставится у спавна при первом запуске мира,
 лаборатория и Нексус — в 10 000 блоков по углу из сида (в разные стороны, на суше), когда их область впервые загрузилась.
-Оператор: `/viva постройки статус | поставить <lab|nexus|crash> [здесь] | тп <lab|nexus|crash>`,
-`/viva нексус уничтожить | восстановить`, `/viva стадия [1–5]` (EN: `/viva structures status | place | tp`,
-`/viva nexus destroy | restore`, `/viva stage [n]`). Стадия — временно, до AStages.
+Оператор: `/viva sites status | place <lab|nexus|crash> [here] | tp <lab|nexus|crash>`,
+`/viva nexus destroy | restore`, `/viva stage [1–5]`. Стадия — временно, до AStages.
 Зоны влияния (`zones.*`): вокруг ядер круги 9 500 блоков, доля мобов стороны 100% − 10% за 1000 блоков; до 4-й стадии —
 только охрана 30% в 1000 блоков от ядер. Защита построек (`protection.*`): в коробке постройки нельзя ломать, ставить,
 лить (и снаружи раздатчиком или затеканием), жечь, взрывать, двигать, ломать и разбирать в неё контрапции Create;

@@ -16,7 +16,8 @@ public final class ArmyParticleProviders {
 
     public static void register(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ArmyParticles.MUZZLE_FLASH.get(), sprites -> (t, l, x, y, z, dx, dy, dz) ->
-                new VivaParticle(l, x, y, z, 0, 0, 0, sprites, 4, 0f, 0.35f, true, true));
+                new VivaParticle(l, x, y, z, 0, 0, 0, sprites, 4, 0f, (float) dev.rezus.vivacore.VivaClientConfig.muzzleFlashSize(), true, true)
+                        .hideNearCamera());
         event.registerSpriteSet(ArmyParticles.SPARK.get(), sprites -> (t, l, x, y, z, dx, dy, dz) ->
                 new VivaParticle(l, x, y, z, dx, dy, dz, sprites, 8 + l.random.nextInt(6), 0.6f, 0.08f, true, true));
         event.registerSpriteSet(ArmyParticles.DEBRIS.get(), sprites -> (t, l, x, y, z, dx, dy, dz) ->
@@ -50,6 +51,23 @@ public final class ArmyParticleProviders {
         public void tick() {
             super.tick();
             if (animated && !removed) setSpriteFromAge(sprites);
+        }
+
+        /** Задача 11: вспышка у самой камеры (машина стреляет вплотную к игроку) не рисуется — не заслоняет экран. */
+        private boolean hideNear;
+
+        VivaParticle hideNearCamera() {
+            hideNear = true;
+            return this;
+        }
+
+        @Override
+        public void render(com.mojang.blaze3d.vertex.VertexConsumer buffer, net.minecraft.client.Camera camera, float partialTicks) {
+            if (hideNear) {
+                double near = dev.rezus.vivacore.VivaClientConfig.hideNearCamera() + 0.5;
+                if (camera.getPosition().distanceToSqr(x, y, z) < near * near) return;
+            }
+            super.render(buffer, camera, partialTicks);
         }
 
         @Override

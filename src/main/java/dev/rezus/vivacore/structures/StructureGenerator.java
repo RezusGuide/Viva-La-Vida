@@ -26,7 +26,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 
 /**
  * Генератор черновиков трёх построек (тест 31, часть А). Только для разработки: команда
- * /viva постройки собрать &lt;crash|lab|nexus&gt; в dev-мире ставит блоки над игроком (на высоте 200), сохраняет
+ * /viva sites build &lt;crash|lab|nexus&gt; в dev-мире ставит блоки над игроком (на высоте 200), сохраняет
  * StructureTemplate в data/vivacore/structure/&lt;file&gt;.nbt (папка — свойство vivacore.structureOut, по умолчанию
  * ../src/main/resources/... относительно run/) и убирает блоки.
  * <p>
