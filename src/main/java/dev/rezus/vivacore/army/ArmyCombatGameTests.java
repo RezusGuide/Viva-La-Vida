@@ -235,6 +235,7 @@ public final class ArmyCombatGameTests {
                     + " (цель " + (tank.getTarget() == far) + ")";
             dev.rezus.vivacore.VivaCore.LOGGER.info("Viva Core движение: {}", info);
             for (var e : h.getLevel().getEntitiesOfClass(OrionMachine.class, new AABB(h.absolutePos(BlockPos.ZERO)).inflate(40))) e.discard();
+            for (var e : h.getLevel().getEntitiesOfClass(OrionProjectile.class, new AABB(h.absolutePos(BlockPos.ZERO)).inflate(40))) e.discard();
             far.discard();
             setFireRange(MachineType.INFANTRY_LIGHT, oldInf);
             setFireRange(MachineType.TANK, oldTank);

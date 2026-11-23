@@ -50,7 +50,8 @@ public final class CombatLimitGameTests {
                 MobSpawnType.SPAWN_EGG);
         AABB area = new AABB(h.absolutePos(BlockPos.ZERO)).inflate(40);
         int[] projectiles = {0};
-        h.onEachTick(() -> projectiles[0] += h.getLevel().getEntitiesOfClass(OrionProjectile.class, area).size());
+        // только снаряды этой машины: снаряды машин соседних тестов могут залететь в область
+        h.onEachTick(() -> projectiles[0] += h.getLevel().getEntitiesOfClass(OrionProjectile.class, area, p -> p.getOwner() == m).size());
         h.succeedWhen(() -> {
             h.assertTrue(m.combat().shotsFired() > 0, "выстрелы были");
             h.assertTrue(t.getHealth() < hp || t.isDeadOrDying(), "цель получила урон");
